@@ -19,6 +19,6 @@ class Config:
     D1_DB_ID      = os.getenv("D1_DATABASE_ID", "")
 
     # تنظیمات عمومی
-    CHANNEL_USERNAME = "@YourChannelID"  # آیدی کانال تلگرام خود را اینجا بنویسید
+    CHANNEL_USERNAME = "-1004326201738"  # آیدی کانال تلگرام خود را اینجا بنویسید
     MAX_NEWS_PER_RUN = 30  # حداکثر اخبار ارسالی در هر اجرا
     DELAY_BETWEEN_SENDS = 3  # ثانیه تأخیر بین ارسال‌ها
