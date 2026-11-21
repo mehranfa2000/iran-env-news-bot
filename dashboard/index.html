@@ -7,59 +7,398 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { background-color: #f4f7f6; font-family: Tahoma, sans-serif; }
-        .card { border: none; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .sidebar { background: #1a5e20; color: white; min-height: 100vh; padding: 20px; }
-        .stat-card { transition: transform 0.3s; }
-        .stat-card:hover { transform: translateY(-5px); }
+        body {
+            background-color: #f0f4f1;
+            font-family: Tahoma, sans-serif;
+            font-size: 14px;
+        }
+        .sidebar {
+            background: linear-gradient(180deg, #1b5e20, #2e7d32);
+            color: white;
+            min-height: 100vh;
+            padding: 20px 10px;
+            position: sticky;
+            top: 0;
+        }
+        .sidebar h4 {
+            font-size: 15px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.85);
+            border-radius: 8px;
+            margin-bottom: 5px;
+            transition: background 0.2s;
+        }
+        .sidebar .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            color: white;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            transition: transform 0.3s;
+            cursor: default;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #2e7d32;
+        }
+        .news-item {
+            border-right: 4px solid #4caf50;
+            padding-right: 10px;
+            margin-bottom: 15px;
+        }
+        .news-item h6 {
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .badge-source {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+        }
+        .topbar {
+            background: white;
+            padding: 12px 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .login-box {
+            max-width: 350px;
+            margin: 100px auto;
+        }
+        #dashboard {
+            display: none;
+        }
+        .loading-spinner {
+            text-align: center;
+            padding: 30px;
+            color: #888;
+        }
+        #searchInput {
+            border-radius: 20px;
+            border: 1px solid #c8e6c9;
+            padding: 6px 15px;
+        }
+        .source-badge-irna { background: #fff3e0; color: #e65100; }
+        .source-badge-isna { background: #e3f2fd; color: #1565c0; }
+        .source-badge-fars { background: #fce4ec; color: #880e4f; }
     </style>
 </head>
 <body>
+
+<!-- صفحه ورود -->
+<div id="loginPage">
+    <div class="login-box">
+        <div class="card p-4 text-center">
+            <div style="font-size: 50px;">🌿</div>
+            <h5 class="mt-2 mb-4">داشبورد اخبار محیط زیست ایران</h5>
+            <div class="mb-3">
+                <input type="password" id="passwordInput" class="form-control text-center" placeholder="رمز ورود را وارد کنید">
+            </div>
+            <button class="btn btn-success w-100" onclick="checkLogin()">ورود</button>
+            <div id="loginError" class="text-danger mt-2 d-none">رمز اشتباه است!</div>
+        </div>
+    </div>
+</div>
+
+<!-- داشبورد اصلی -->
+<div id="dashboard">
     <div class="container-fluid">
         <div class="row">
+
             <!-- Sidebar -->
             <div class="col-md-2 sidebar d-none d-md-block">
-                <h4 class="text-center mb-4">مدیریت بات</h4>
-                <hr>
+                <div style="font-size: 30px; text-align:center;">🌿</div>
+                <h4>پایش اخبار محیط زیست</h4>
+                <hr style="border-color: rgba(255,255,255,0.3);">
                 <ul class="nav flex-column">
-                    <li class="nav-item"><a class="nav-link text-white" href="#">🏠 داشبورد</a></li>
-                    <li class="nav-item"><a class="nav-link text-white" href="#">📊 آمار کل</a></li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#stats">📊 آمار کلی</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#charts">📈 نمودارها</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#newsList">📰 آخرین اخبار</a>
+                    </li>
                 </ul>
+                <hr style="border-color: rgba(255,255,255,0.3);">
+                <small style="opacity: 0.6; font-size: 11px;">آخرین بروزرسانی:<br><span id="lastUpdate">...</span></small>
             </div>
-            <!-- Main Content -->
+
+            <!-- محتوای اصلی -->
             <div class="col-md-10 p-4">
-                <h2 class="mb-4">📊 وضعیت پایش محیط زیست</h2>
-                <div class="row mb-4">
-                    <div class="col-md-4">
-                        <div class="card p-3 stat-card text-center bg-white">
-                            <h6>کل اخبار پردازش شده</h6>
-                            <h2 id="totalNews">...</h2>
+
+                <!-- نوار بالا -->
+                <div class="topbar">
+                    <div>
+                        <strong>🌱 داشبورد اخبار محیط زیست ایران</strong>
+                    </div>
+                    <div class="d-flex gap-2 align-items-center">
+                        <input type="text" id="searchInput" placeholder="جستجو در اخبار..." oninput="searchNews()" />
+                        <button class="btn btn-sm btn-outline-danger" onclick="logout()">خروج</button>
+                    </div>
+                </div>
+
+                <!-- کارت‌های آمار -->
+                <div class="row mb-4" id="stats">
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3 stat-card text-center">
+                            <small class="text-muted">کل اخبار ارسالی</small>
+                            <div class="stat-number" id="totalNews">...</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3 stat-card text-center">
+                            <small class="text-muted">امروز</small>
+                            <div class="stat-number" id="todayNews">...</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3 stat-card text-center">
+                            <small class="text-muted">بیشترین منبع</small>
+                            <div class="stat-number" id="topSource" style="font-size:1.2rem; padding-top:8px;">...</div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card p-3 stat-card text-center">
+                            <small class="text-muted">بیشترین دسته</small>
+                            <div class="stat-number" id="topCategory" style="font-size:1rem; padding-top:8px;">...</div>
                         </div>
                     </div>
                 </div>
-                <div class="row">
-                    <div class="col-md-7">
-                        <div class="card p-4">
-                            <h5>آخرین اخبار ارسالی</h5>
-                            <div id="newsList" class="list-group list-group-flush">
-                                <!-- اخبار اینجا نمایش داده می‌شوند -->
-                                بارگذاری...
-                            </div>
-                        </div>
-                    </div>
+
+                <!-- نمودارها -->
+                <div class="row mb-4" id="charts">
                     <div class="col-md-5">
                         <div class="card p-4 text-center">
-                            <h5>توزیع موضوعی اخبار</h5>
-                            <canvas id="categoryChart"></canvas>
+                            <h6 class="mb-3">🗂️ توزیع دسته‌بندی اخبار</h6>
+                            <canvas id="categoryChart" height="220"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-7">
+                        <div class="card p-4">
+                            <h6 class="mb-3">📡 توزیع منابع خبری</h6>
+                            <canvas id="sourceChart" height="220"></canvas>
                         </div>
                     </div>
                 </div>
+
+                <!-- لیست اخبار -->
+                <div class="card p-4" id="newsList">
+                    <h6 class="mb-3">📰 آخرین اخبار ارسال شده به کانال‌ها</h6>
+                    <div id="newsContainer">
+                        <div class="loading-spinner">⏳ در حال بارگذاری اخبار...</div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // در مرحله بعد کدهای اتصال به دیتابیس را اینجا می‌نویسیم
-    </script>
+<script>
+    // ===== رمز ورود داشبورد =====
+    const DASHBOARD_PASSWORD = "envnews1405";
+
+    function checkLogin() {
+        const pass = document.getElementById('passwordInput').value;
+        if (pass === DASHBOARD_PASSWORD) {
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            loadDashboard();
+        } else {
+            document.getElementById('loginError').classList.remove('d-none');
+        }
+    }
+
+    document.getElementById('passwordInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') checkLogin();
+    });
+
+    function logout() {
+        document.getElementById('loginPage').style.display = 'block';
+        document.getElementById('dashboard').style.display = 'none';
+        document.getElementById('passwordInput').value = '';
+    }
+
+    // ===== نام فارسی دسته‌بندی‌ها =====
+    const categoryNames = {
+        "air_pollution": "🌬️ آلودگی هوا، آب و خاک",
+        "wildlife":      "🐆 حیات وحش و تنوع زیستی",
+        "water_wetlands":"🌊 تالاب‌ها و منابع آب",
+        "climate_change":"🌡️ تغییر اقلیم",
+        "forests":       "🌲 جنگل‌ها و منابع طبیعی",
+        "policy_org":    "🏛️ سازمان و قوانین",
+        "sustainable_dev":"♻️ توسعه پایدار"
+    };
+
+    let allNewsData = [];
+
+    // ===== بارگذاری داشبورد =====
+    async function loadDashboard() {
+        try {
+            // ۱. دریافت آمار دسته‌بندی
+            const statsRes = await fetch('/api/stats');
+            const statsData = await statsRes.json();
+
+            let total = 0;
+            const catLabels = [];
+            const catCounts = [];
+            let topCat = { name: '', count: 0 };
+
+            statsData.forEach(item => {
+                total += item.count;
+                const name = categoryNames[item.category] || item.category;
+                catLabels.push(name);
+                catCounts.push(item.count);
+                if (item.count > topCat.count) {
+                    topCat = { name: name, count: item.count };
+                }
+            });
+
+            document.getElementById('totalNews').innerText = total;
+            document.getElementById('topCategory').innerText = topCat.name || '-';
+
+            // ۲. رسم نمودار دسته‌بندی
+            new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: catLabels,
+                    datasets: [{
+                        data: catCounts,
+                        backgroundColor: [
+                            '#66bb6a','#42a5f5','#ffa726',
+                            '#ef5350','#ab47bc','#8d6e63','#78909c'
+                        ]
+                    }]
+                },
+                options: {
+                    plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+                    cutout: '60%'
+                }
+            });
+
+            // ۳. دریافت اخبار
+            const newsRes = await fetch('/api/news');
+            allNewsData = await newsRes.json();
+
+            renderNews(allNewsData);
+            buildSourceChart(allNewsData);
+            calcStats(allNewsData);
+
+            // ۴. زمان بروزرسانی
+            document.getElementById('lastUpdate').innerText =
+                new Date().toLocaleTimeString('fa-IR');
+
+        } catch (error) {
+            console.error('خطا:', error);
+            document.getElementById('newsContainer').innerHTML =
+                '<div class="text-danger text-center p-3">⚠️ خطا در اتصال به دیتابیس. لطفاً صفحه را رفرش کنید.</div>';
+        }
+    }
+
+    // ===== نمایش لیست اخبار =====
+    function renderNews(data) {
+        const container = document.getElementById('newsContainer');
+        if (!data || data.length === 0) {
+            container.innerHTML = '<div class="text-muted text-center p-3">📭 هنوز هیچ خبری در دیتابیس ثبت نشده است.<br><small>ربات را یک بار از طریق GitHub Actions اجرا کنید.</small></div>';
+            return;
+        }
+        container.innerHTML = '';
+        data.forEach(news => {
+            const catName = categoryNames[news.category] || news.category;
+            const date = news.timestamp ? new Date(news.timestamp).toLocaleString('fa-IR') : '-';
+            const sourceClass = news.source === 'IRNA' ? 'source-badge-irna' :
+                                news.source === 'ISNA' ? 'source-badge-isna' : 'source-badge-fars';
+            const div = document.createElement('div');
+            div.className = 'news-item';
+            div.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start mb-1">
+                    <h6>${news.title}</h6>
+                    <span class="badge-source ${sourceClass} me-2">${news.source}</span>
+                </div>
+                <div class="d-flex gap-2 align-items-center flex-wrap">
+                    <small class="text-muted">🕐 ${date}</small>
+                    <small class="text-muted">|</small>
+                    <small>${catName}</small>
+                    <a href="${news.link}" target="_blank" class="btn btn-sm btn-outline-success py-0 ms-auto">مشاهده خبر 🔗</a>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // ===== نمودار منابع =====
+    function buildSourceChart(data) {
+        const sources = {};
+        data.forEach(n => {
+            sources[n.source] = (sources[n.source] || 0) + 1;
+        });
+        const labels = Object.keys(sources);
+        const counts = Object.values(sources);
+
+        const topSrc = labels[counts.indexOf(Math.max(...counts))] || '-';
+        document.getElementById('topSource').innerText = topSrc;
+
+        new Chart(document.getElementById('sourceChart'), {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'تعداد اخبار',
+                    data: counts,
+                    backgroundColor: ['#66bb6a', '#42a5f5', '#ef5350']
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+    }
+
+    // ===== آمار امروز =====
+    function calcStats(data) {
+        const today = new Date().toLocaleDateString('fa-IR');
+        const todayCount = data.filter(n => {
+            if (!n.timestamp) return false;
+            return new Date(n.timestamp).toLocaleDateString('fa-IR') === today;
+        }).length;
+        document.getElementById('todayNews').innerText = todayCount;
+    }
+
+    // ===== جستجو =====
+    function searchNews() {
+        const query = document.getElementById('searchInput').value.toLowerCase();
+        if (!query) {
+            renderNews(allNewsData);
+            return;
+        }
+        const filtered = allNewsData.filter(n =>
+            (n.title && n.title.toLowerCase().includes(query)) ||
+            (n.source && n.source.toLowerCase().includes(query))
+        );
+        renderNews(filtered);
+    }
+</script>
+
 </body>
 </html>
