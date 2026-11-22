@@ -1,755 +1,1619 @@
 <!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<html lang="fa" dir="rtl" data-theme="dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سامانه ملی پایش اخبار محیط زیست ایران</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <style>
-        :root {
-            --g1: #1b5e20;
-            --g2: #2e7d32;
-            --g3: #4caf50;
-            --g4: #e8f5e9;
-            --bg: #f0f4f1;
-            --card-shadow: 0 4px 20px rgba(0,0,0,.08);
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            background: var(--bg);
-            font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
-            font-size: 14px;
-            color: #222;
-        }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>سامانه پایش اخبار محیط زیست</title>
 
-        /* ===== SIDEBAR ===== */
-        .sidebar {
-            background: linear-gradient(170deg, #1a3a1f 0%, #1b5e20 40%, #2e7d32 100%);
-            color: #fff;
-            min-height: 100vh;
-            padding: 28px 14px;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-        }
-        .sb-logo { text-align:center; margin-bottom:24px; }
-        .sb-logo .ico { font-size:46px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.3)); }
-        .sb-logo h5 {
-            font-size: 12.5px;
-            margin-top: 10px;
-            line-height: 1.8;
-            opacity: .92;
-        }
-        .sb-divider { border-color: rgba(255,255,255,.2); margin: 14px 0; }
-        .sidebar .nav-link {
-            color: rgba(255,255,255,.75);
-            border-radius: 10px;
-            padding: 10px 14px;
-            margin-bottom: 4px;
-            font-size: 13px;
-            transition: .2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .sidebar .nav-link:hover { background: rgba(255,255,255,.15); color:#fff; }
-        .sb-footer {
-            font-size: 10.5px;
-            opacity: .55;
-            text-align: center;
-            line-height: 1.9;
-            margin-top: auto;
-            padding-top: 20px;
-        }
-        .sb-badge {
-            background: rgba(255,255,255,.18);
-            border-radius: 20px;
-            font-size: 10px;
-            padding: 1px 8px;
-            margin-right: auto;
-        }
+<!-- Vazirmatn — بهترین فونت فارسی ۲۰۲۶ -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 
-        /* ===== TOPBAR ===== */
-        .topbar {
-            background: #fff;
-            border-radius: 16px;
-            padding: 14px 22px;
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: var(--card-shadow);
-            flex-wrap: wrap;
-            gap: 12px;
-        }
-        .topbar-left h6 { font-size: 15px; color: var(--g1); font-weight: bold; margin:0; }
-        .topbar-left p  { font-size: 11px; color: #999; margin:2px 0 0; }
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 
-        /* ===== STAT CARDS ===== */
-        .card {
-            border: none;
-            border-radius: 16px;
-            box-shadow: var(--card-shadow);
-            margin-bottom: 24px;
-            background: #fff;
-        }
-        .stat-card {
-            padding: 22px 14px;
-            text-align: center;
-            transition: transform .3s, box-shadow .3s;
-            cursor: default;
-            position: relative;
-            overflow: hidden;
-        }
-        .stat-card::before {
-            content: "";
-            position: absolute;
-            top: -20px; left: -20px;
-            width: 80px; height: 80px;
-            border-radius: 50%;
-            background: var(--g4);
-            opacity: .6;
-        }
-        .stat-card:hover {
-            transform: translateY(-6px);
-            box-shadow: 0 10px 30px rgba(46,125,50,.18);
-        }
-        .stat-icon  { font-size: 26px; margin-bottom: 6px; }
-        .stat-num   { font-size: 2.2rem; font-weight: 800; color: var(--g2); line-height: 1.1; }
-        .stat-label { font-size: 11.5px; color: #888; margin-top: 5px; }
+<style>
+/* ══════════════════════════════════════════════════════
+   CSS Design Tokens — یک منبع حقیقت (استاندارد 2026)
+══════════════════════════════════════════════════════ */
+:root {
+  /* رنگ‌های برند */
+  --green-400: #4ade80;
+  --green-500: #22c55e;
+  --green-600: #16a34a;
 
-        /* ===== CHART ===== */
-        .chart-wrap { position: relative; height: 270px; }
-        .chart-title {
-            font-size: 13.5px;
-            font-weight: bold;
-            color: var(--g1);
-            margin-bottom: 16px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
+  /* فونت */
+  --font: 'Vazirmatn', system-ui, sans-serif;
 
-        /* ===== NEWS ITEMS ===== */
-        .news-item {
-            border-right: 4px solid var(--g3);
-            padding: 13px 15px;
-            margin-bottom: 12px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,.05);
-            transition: .25s;
-        }
-        .news-item:hover {
-            box-shadow: 0 6px 20px rgba(46,125,50,.14);
-            transform: translateX(-2px);
-        }
-        .news-title {
-            font-size: 13.5px;
-            font-weight: bold;
-            line-height: 1.75;
-            color: #111;
-        }
-        .news-meta {
-            font-size: 11.5px;
-            color: #aaa;
-            margin-top: 7px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-        }
-        .meta-pill {
-            background: var(--g4);
-            color: var(--g2);
-            border-radius: 20px;
-            padding: 2px 10px;
-            font-size: 11px;
-        }
+  /* انیمیشن */
+  --transition: 0.25s ease;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+}
 
-        /* ===== SOURCE BADGES ===== */
-        .src-badge {
-            display: inline-block;
-            padding: 3px 11px;
-            border-radius: 20px;
-            font-size: 11px;
-            font-weight: bold;
-            white-space: nowrap;
-        }
-        .src-IRNA          { background:#fff3e0; color:#e65100; }
-        .src-Mehr          { background:#fce4ec; color:#880e4f; }
-        .src-Hamshahri     { background:#e8f5e9; color:#2e7d32; }
-        .src-KhabarOnline  { background:#e3f2fd; color:#1565c0; }
-        .src-IMNA          { background:#ede7f6; color:#4527a0; }
-        .src-YJC           { background:#e0f2f1; color:#00695c; }
-        .src-Ettelaat      { background:#f9fbe7; color:#558b2f; border:1px solid #dce775; }
-        .src-IRIBNews      { background:#fff9c4; color:#f57f17; }
-        .src-IRIBNewsEnergy{ background:#fff8e1; color:#ff8f00; }
-        .src-SalamatNews   { background:#f3e5f5; color:#6a1b9a; }
-        .src-ISNA          { background:#e3f2fd; color:#0d47a1; }
+/* ── Dark Mode (پیش‌فرض) ─────────────────────────── */
+[data-theme="dark"] {
+  --bg-base:    #0f172a;
+  --bg-surface: #1e293b;
+  --bg-raised:  #334155;
+  --bg-hover:   #3f526b;
+  --border:     #334155;
 
-        /* ===== SEARCH & FILTER ===== */
-        .search-bar {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-bottom: 18px;
-        }
-        #searchInput {
-            border-radius: 25px;
-            border: 1.5px solid #c8e6c9;
-            padding: 8px 20px;
-            font-size: 13px;
-            width: 240px;
-            outline: none;
-            transition: .2s;
-            background: #f9fdf9;
-        }
-        #searchInput:focus { border-color: var(--g3); background: #fff; }
-        .filter-btn {
-            border-radius: 20px;
-            font-size: 12px;
-            padding: 6px 14px;
-            border: 1.5px solid #c8e6c9;
-            background: #fff;
-            color: var(--g2);
-            cursor: pointer;
-            transition: .2s;
-        }
-        .filter-btn:hover,
-        .filter-btn.active { background: var(--g2); color: #fff; border-color: var(--g2); }
+  --text-primary:   #f1f5f9;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
 
-        /* ===== PAGINATION ===== */
-        .pagination .page-link { color: var(--g2); border-radius: 8px; margin: 0 2px; }
-        .pagination .page-item.active .page-link {
-            background: var(--g2);
-            border-color: var(--g2);
-        }
+  --accent:       #22c55e;
+  --accent-glow:  rgba(34,197,94,0.15);
 
-        /* ===== SECTION HEADER ===== */
-        .section-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 18px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .section-title {
-            font-size: 14px;
-            font-weight: bold;
-            color: var(--g1);
-        }
-        .news-count-badge {
-            background: var(--g4);
-            color: var(--g2);
-            border-radius: 20px;
-            padding: 3px 12px;
-            font-size: 11px;
-        }
+  --red:    #ef4444;
+  --yellow: #f59e0b;
+  --blue:   #3b82f6;
+  --purple: #a855f7;
 
-        /* ===== EMPTY / ERROR ===== */
-        .empty-state { text-align:center; padding: 50px 20px; color: #bbb; }
-        .empty-state .big-icon { font-size: 50px; margin-bottom: 10px; }
+  --shadow: 0 4px 24px rgba(0,0,0,0.4);
+  --chart-grid: rgba(255,255,255,0.06);
+  --chart-text: #94a3b8;
+}
 
-        /* ===== LOADING ===== */
-        .loading-wrap { text-align:center; padding: 40px; color: #bbb; }
-        .spinner-border { color: var(--g3) !important; }
+/* ── Light Mode ──────────────────────────────────── */
+[data-theme="light"] {
+  --bg-base:    #f0fdf4;
+  --bg-surface: #ffffff;
+  --bg-raised:  #f1f5f9;
+  --bg-hover:   #e2e8f0;
+  --border:     #e2e8f0;
 
-        /* ===== SCROLLBAR ===== */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #a5d6a7; border-radius: 3px; }
+  --text-primary:   #0f172a;
+  --text-secondary: #475569;
+  --text-muted:     #94a3b8;
 
-        /* ===== TODAY BANNER ===== */
-        .today-banner {
-            background: linear-gradient(135deg, var(--g1), var(--g2));
-            color: white;
-            border-radius: 14px;
-            padding: 16px 22px;
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            box-shadow: 0 4px 20px rgba(27,94,32,.3);
-        }
-        .today-banner .date-fa { font-size: 15px; font-weight: bold; }
-        .today-banner .time-fa { font-size: 12px; opacity: .8; margin-top: 3px; }
-        .today-banner .live-dot {
-            width: 10px; height: 10px;
-            background: #69f0ae;
-            border-radius: 50%;
-            display: inline-block;
-            margin-left: 6px;
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%,100% { opacity: 1; transform: scale(1); }
-            50%      { opacity: .4; transform: scale(1.4); }
-        }
-    </style>
+  --accent:       #16a34a;
+  --accent-glow:  rgba(22,163,74,0.1);
+
+  --red:    #dc2626;
+  --yellow: #d97706;
+  --blue:   #2563eb;
+  --purple: #9333ea;
+
+  --shadow: 0 4px 24px rgba(0,0,0,0.08);
+  --chart-grid: rgba(0,0,0,0.06);
+  --chart-text: #475569;
+}
+
+/* ══════════════════════════════════════════════════
+   ریست و پایه
+══════════════════════════════════════════════════ */
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0 }
+
+html { scroll-behavior:smooth }
+
+body {
+  font-family: var(--font);
+  background:  var(--bg-base);
+  color:       var(--text-primary);
+  line-height: 1.7;
+  min-height:  100vh;
+  transition:  background var(--transition), color var(--transition);
+}
+
+/* ══════════════════════════════════════════════════
+   اسکرول‌بار سفارشی
+══════════════════════════════════════════════════ */
+::-webkit-scrollbar { width:6px; height:6px }
+::-webkit-scrollbar-track { background:var(--bg-base) }
+::-webkit-scrollbar-thumb { background:var(--bg-raised); border-radius:3px }
+::-webkit-scrollbar-thumb:hover { background:var(--accent) }
+
+/* ══════════════════════════════════════════════════
+   Layout — Sidebar + Main
+══════════════════════════════════════════════════ */
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ──────────────────────────────────── */
+.sidebar {
+  background:  var(--bg-surface);
+  border-left: 1px solid var(--border);
+  display:     flex;
+  flex-direction: column;
+  position:    sticky;
+  top:         0;
+  height:      100vh;
+  overflow-y:  auto;
+  z-index:     100;
+  transition:  background var(--transition);
+}
+
+.sidebar-header {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+  margin-bottom: 4px;
+}
+
+.logo-icon {
+  width:           40px;
+  height:          40px;
+  background:      var(--accent-glow);
+  border:          1px solid var(--accent);
+  border-radius:   var(--radius-sm);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       20px;
+}
+
+.logo-text { font-size:15px; font-weight:700; color:var(--text-primary) }
+.logo-sub  { font-size:11px; color:var(--text-muted) }
+
+.sidebar-nav { padding:16px 12px; flex:1 }
+
+.nav-label {
+  font-size:   10px;
+  font-weight: 600;
+  color:       var(--text-muted);
+  letter-spacing: 1px;
+  padding:     0 8px;
+  margin:      16px 0 8px;
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display:       flex;
+  align-items:   center;
+  gap:           10px;
+  padding:       10px 12px;
+  border-radius: var(--radius-sm);
+  cursor:        pointer;
+  color:         var(--text-secondary);
+  font-size:     14px;
+  font-weight:   500;
+  transition:    all var(--transition);
+  margin-bottom: 2px;
+  border:        none;
+  background:    none;
+  width:         100%;
+  text-align:    right;
+}
+
+.nav-item:hover, .nav-item.active {
+  background: var(--accent-glow);
+  color:      var(--accent);
+}
+
+.nav-item .icon { font-size:16px; min-width:20px; text-align:center }
+
+.sidebar-footer {
+  padding: 16px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.theme-toggle {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         10px 12px;
+  background:      var(--bg-raised);
+  border-radius:   var(--radius-sm);
+  cursor:          pointer;
+  font-size:       13px;
+  color:           var(--text-secondary);
+  border:          none;
+  width:           100%;
+}
+
+.toggle-track {
+  width:         40px;
+  height:        22px;
+  background:    var(--bg-hover);
+  border-radius: 11px;
+  position:      relative;
+  transition:    background var(--transition);
+}
+
+[data-theme="light"] .toggle-track { background: var(--accent) }
+
+.toggle-thumb {
+  width:         18px;
+  height:        18px;
+  background:    white;
+  border-radius: 50%;
+  position:      absolute;
+  top:           2px;
+  right:         2px;
+  transition:    right var(--transition);
+  box-shadow:    0 1px 4px rgba(0,0,0,0.3);
+}
+
+[data-theme="light"] .toggle-thumb { right: 20px }
+
+/* ── Main ──────────────────────────────────────── */
+.main {
+  overflow: hidden;
+  display:  flex;
+  flex-direction: column;
+}
+
+/* ── Topbar ──────────────────────────────────── */
+.topbar {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  padding:         16px 28px;
+  background:      var(--bg-surface);
+  border-bottom:   1px solid var(--border);
+  gap:             16px;
+  flex-wrap:       wrap;
+  position:        sticky;
+  top:             0;
+  z-index:         90;
+}
+
+.topbar-title { font-size:18px; font-weight:700 }
+.topbar-sub   { font-size:12px; color:var(--text-muted); margin-top:2px }
+
+.search-box {
+  display:       flex;
+  align-items:   center;
+  gap:           8px;
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding:       8px 14px;
+  flex:          1;
+  max-width:     320px;
+  transition:    border-color var(--transition);
+}
+
+.search-box:focus-within { border-color:var(--accent) }
+
+.search-box input {
+  background: none;
+  border:     none;
+  outline:    none;
+  font-family:var(--font);
+  font-size:  14px;
+  color:      var(--text-primary);
+  width:      100%;
+  direction:  rtl;
+}
+
+.search-box input::placeholder { color:var(--text-muted) }
+
+/* ── Content ─────────────────────────────────── */
+.content { padding:24px 28px; flex:1; overflow-y:auto }
+
+/* ══════════════════════════════════════════════════
+   کارت‌های آماری
+══════════════════════════════════════════════════ */
+.stats-grid {
+  display:               grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap:                   16px;
+  margin-bottom:         28px;
+}
+
+.stat-card {
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       20px;
+  display:       flex;
+  align-items:   center;
+  gap:           16px;
+  transition:    transform var(--transition), box-shadow var(--transition);
+  cursor:        default;
+}
+
+.stat-card:hover {
+  transform:   translateY(-2px);
+  box-shadow:  var(--shadow);
+}
+
+.stat-icon {
+  width:           52px;
+  height:          52px;
+  border-radius:   var(--radius-md);
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  font-size:       24px;
+  flex-shrink:     0;
+}
+
+.stat-icon.green  { background:rgba(34,197,94,0.15) }
+.stat-icon.red    { background:rgba(239,68,68,0.15)  }
+.stat-icon.yellow { background:rgba(245,158,11,0.15) }
+.stat-icon.blue   { background:rgba(59,130,246,0.15) }
+
+.stat-info {}
+.stat-num {
+  font-size:   28px;
+  font-weight: 800;
+  line-height: 1.1;
+  color:       var(--text-primary);
+}
+
+.stat-label {
+  font-size:  12px;
+  color:      var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ══════════════════════════════════════════════════
+   بخش نمودارها
+══════════════════════════════════════════════════ */
+.charts-grid {
+  display:               grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap:                   20px;
+  margin-bottom:         28px;
+}
+
+.chart-card {
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       24px;
+}
+
+.chart-card-full {
+  grid-column: 1 / -1;
+}
+
+.chart-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   20px;
+}
+
+.chart-title {
+  font-size:   15px;
+  font-weight: 700;
+  display:     flex;
+  align-items: center;
+  gap:         8px;
+}
+
+.chart-badge {
+  font-size:     11px;
+  padding:       3px 10px;
+  border-radius: 20px;
+  background:    var(--accent-glow);
+  color:         var(--accent);
+  font-weight:   600;
+}
+
+.chart-wrap { position:relative; height:220px }
+.chart-wrap-sm { height:200px }
+
+/* ══════════════════════════════════════════════════
+   مرکز فرماندهی روابط عمومی
+══════════════════════════════════════════════════ */
+.pr-section {
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       24px;
+  margin-bottom: 28px;
+}
+
+.section-header {
+  display:         flex;
+  align-items:     center;
+  justify-content: space-between;
+  margin-bottom:   20px;
+  flex-wrap:       wrap;
+  gap:             12px;
+}
+
+.section-title {
+  font-size:   16px;
+  font-weight: 700;
+  display:     flex;
+  align-items: center;
+  gap:         10px;
+}
+
+.pr-tabs {
+  display: flex;
+  gap:     8px;
+  flex-wrap: wrap;
+}
+
+.pr-tab {
+  padding:       6px 14px;
+  border-radius: 20px;
+  font-size:     12px;
+  font-weight:   600;
+  cursor:        pointer;
+  border:        1px solid var(--border);
+  background:    var(--bg-raised);
+  color:         var(--text-secondary);
+  font-family:   var(--font);
+  transition:    all var(--transition);
+}
+
+.pr-tab.active, .pr-tab:hover { border-color:var(--accent); color:var(--accent); background:var(--accent-glow) }
+.pr-tab.red    { --accent:var(--red);    --accent-glow:rgba(239,68,68,0.1)  }
+.pr-tab.yellow { --accent:var(--yellow); --accent-glow:rgba(245,158,11,0.1) }
+
+.pr-items { display:flex; flex-direction:column; gap:12px }
+
+.pr-item {
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding:       16px;
+  display:       flex;
+  flex-direction:column;
+  gap:           10px;
+  transition:    border-color var(--transition);
+}
+
+.pr-item:hover { border-color:var(--accent) }
+
+.pr-item-top {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             12px;
+}
+
+.pr-item-title {
+  font-size:   14px;
+  font-weight: 600;
+  line-height: 1.5;
+  flex:        1;
+}
+
+.sensitivity-badge {
+  padding:       3px 10px;
+  border-radius: 20px;
+  font-size:     11px;
+  font-weight:   700;
+  white-space:   nowrap;
+  flex-shrink:   0;
+}
+
+.badge-critical { background:rgba(239,68,68,0.15);  color:var(--red)    }
+.badge-high     { background:rgba(245,158,11,0.15); color:var(--yellow) }
+.badge-normal   { background:rgba(59,130,246,0.15);  color:var(--blue)   }
+.badge-positive { background:rgba(34,197,94,0.15);  color:var(--accent) }
+
+.pr-meta {
+  display:   flex;
+  gap:       12px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color:     var(--text-muted);
+}
+
+.pr-actions {
+  display:   flex;
+  gap:       8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding:       7px 14px;
+  border-radius: var(--radius-sm);
+  font-size:     12px;
+  font-weight:   600;
+  cursor:        pointer;
+  border:        1px solid;
+  font-family:   var(--font);
+  transition:    all var(--transition);
+}
+
+.btn-outline {
+  border-color: var(--border);
+  background:   transparent;
+  color:        var(--text-secondary);
+}
+
+.btn-outline:hover { border-color:var(--accent); color:var(--accent) }
+
+.btn-primary {
+  border-color: var(--accent);
+  background:   var(--accent-glow);
+  color:        var(--accent);
+}
+
+.btn-primary:hover { background:var(--accent); color:white }
+
+/* ══════════════════════════════════════════════════
+   لیست اخبار
+══════════════════════════════════════════════════ */
+.news-section {
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       24px;
+  margin-bottom: 28px;
+}
+
+.filters-row {
+  display:   flex;
+  gap:       10px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.filter-select {
+  padding:       8px 14px;
+  border-radius: var(--radius-sm);
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  color:         var(--text-primary);
+  font-family:   var(--font);
+  font-size:     13px;
+  cursor:        pointer;
+  outline:       none;
+  transition:    border-color var(--transition);
+}
+
+.filter-select:focus { border-color:var(--accent) }
+
+.news-list { display:flex; flex-direction:column; gap:12px }
+
+.news-item {
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding:       16px;
+  display:       flex;
+  flex-direction:column;
+  gap:           8px;
+  transition:    all var(--transition);
+  cursor:        pointer;
+}
+
+.news-item:hover {
+  border-color: var(--accent);
+  transform:    translateX(-2px);
+}
+
+.news-item-header {
+  display:         flex;
+  align-items:     flex-start;
+  justify-content: space-between;
+  gap:             12px;
+}
+
+.news-title {
+  font-size:   14px;
+  font-weight: 600;
+  line-height: 1.6;
+  color:       var(--text-primary);
+  flex:        1;
+}
+
+.news-title:hover { color:var(--accent) }
+
+.news-category {
+  display:       flex;
+  align-items:   center;
+  gap:           5px;
+  font-size:     11px;
+  padding:       3px 10px;
+  border-radius: 20px;
+  background:    var(--accent-glow);
+  color:         var(--accent);
+  white-space:   nowrap;
+  flex-shrink:   0;
+}
+
+.news-summary {
+  font-size:   13px;
+  color:       var(--text-secondary);
+  line-height: 1.6;
+  display:     -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow:    hidden;
+}
+
+.news-footer {
+  display:     flex;
+  align-items: center;
+  gap:         16px;
+  flex-wrap:   wrap;
+  font-size:   12px;
+  color:       var(--text-muted);
+}
+
+.news-footer span { display:flex; align-items:center; gap:4px }
+
+.news-link {
+  margin-right: auto;
+  color:        var(--accent);
+  text-decoration: none;
+  font-size:    12px;
+  font-weight:  600;
+}
+
+.news-link:hover { text-decoration:underline }
+
+/* ══════════════════════════════════════════════════
+   Pagination
+══════════════════════════════════════════════════ */
+.pagination {
+  display:         flex;
+  align-items:     center;
+  justify-content: center;
+  gap:             6px;
+  margin-top:      24px;
+  flex-wrap:       wrap;
+}
+
+.page-btn {
+  width:         36px;
+  height:        36px;
+  border-radius: var(--radius-sm);
+  background:    var(--bg-raised);
+  border:        1px solid var(--border);
+  color:         var(--text-secondary);
+  font-family:   var(--font);
+  font-size:     13px;
+  font-weight:   600;
+  cursor:        pointer;
+  transition:    all var(--transition);
+  display:       flex;
+  align-items:   center;
+  justify-content:center;
+}
+
+.page-btn:hover, .page-btn.active {
+  background:   var(--accent);
+  border-color: var(--accent);
+  color:        white;
+}
+
+.page-btn:disabled { opacity:0.4; cursor:not-allowed }
+
+/* ══════════════════════════════════════════════════
+   Loading / Empty states
+══════════════════════════════════════════════════ */
+.loading {
+  display:         flex;
+  flex-direction:  column;
+  align-items:     center;
+  justify-content: center;
+  gap:             16px;
+  padding:         60px;
+  color:           var(--text-muted);
+}
+
+.spinner {
+  width:         40px;
+  height:        40px;
+  border:        3px solid var(--border);
+  border-top:    3px solid var(--accent);
+  border-radius: 50%;
+  animation:     spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform:rotate(360deg) } }
+
+.empty-state {
+  text-align:  center;
+  padding:     60px;
+  color:       var(--text-muted);
+  font-size:   14px;
+}
+
+.empty-icon { font-size:48px; margin-bottom:16px }
+
+/* ══════════════════════════════════════════════════
+   آمار پایین داشبورد
+══════════════════════════════════════════════════ */
+.footer-stats {
+  background:    var(--bg-surface);
+  border:        1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding:       16px 24px;
+  display:       flex;
+  align-items:   center;
+  justify-content:space-between;
+  gap:           16px;
+  flex-wrap:     wrap;
+  font-size:     12px;
+  color:         var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.footer-stats strong { color:var(--accent) }
+
+/* ══════════════════════════════════════════════════
+   Mobile Overlay
+══════════════════════════════════════════════════ */
+.sidebar-overlay {
+  display:    none;
+  position:   fixed;
+  inset:      0;
+  background: rgba(0,0,0,0.6);
+  z-index:    99;
+}
+
+/* ══════════════════════════════════════════════════
+   Mobile Menu Button
+══════════════════════════════════════════════════ */
+.menu-btn {
+  display:         none;
+  align-items:     center;
+  justify-content: center;
+  width:           38px;
+  height:          38px;
+  background:      var(--bg-raised);
+  border:          1px solid var(--border);
+  border-radius:   var(--radius-sm);
+  cursor:          pointer;
+  font-size:       18px;
+  color:           var(--text-primary);
+}
+
+/* ══════════════════════════════════════════════════
+   Responsive
+══════════════════════════════════════════════════ */
+@media (max-width:1024px) {
+  .stats-grid { grid-template-columns:repeat(2,1fr) }
+  .charts-grid { grid-template-columns:1fr }
+  .chart-card-full { grid-column:auto }
+}
+
+@media (max-width:768px) {
+  .layout { grid-template-columns:1fr }
+
+  .sidebar {
+    position:   fixed;
+    right:      0;
+    top:        0;
+    transform:  translateX(100%);
+    transition: transform 0.3s ease;
+    z-index:    200;
+    width:      280px;
+  }
+
+  .sidebar.open { transform:translateX(0) }
+  .sidebar-overlay { display:block }
+
+  .menu-btn { display:flex }
+  .topbar   { gap:8px }
+  .content  { padding:16px }
+  .topbar   { padding:12px 16px }
+
+  .stats-grid { gap:12px }
+  .stat-card  { padding:14px }
+  .stat-num   { font-size:22px }
+}
+
+@media (max-width:480px) {
+  .stats-grid { grid-template-columns:repeat(2,1fr) }
+  .search-box { max-width:100%; width:100% }
+  .topbar     { flex-wrap:wrap }
+}
+</style>
 </head>
+
 <body>
-<div class="container-fluid p-0">
-<div class="row g-0">
 
-<!-- ===== SIDEBAR ===== -->
-<div class="col-md-2 sidebar d-none d-md-flex flex-column">
-    <div class="sb-logo">
-        <div class="ico">🌿</div>
-        <h5>سامانه ملی پایش<br>اخبار محیط زیست<br>جمهوری اسلامی ایران</h5>
-    </div>
-    <hr class="sb-divider">
-    <ul class="nav flex-column">
-        <li><a class="nav-link" href="#topSection">📊 آمار کلی</a></li>
-        <li><a class="nav-link" href="#charts">📈 نمودارها</a></li>
-        <li><a class="nav-link" href="#newsSection">📰 اخبار</a></li>
-    </ul>
-    <div class="sb-footer">
-        <div>آخرین بروزرسانی:</div>
-        <div id="lastUpdate" style="color:#a5d6a7; font-size:11px">در حال بارگذاری...</div>
-        <div style="margin-top:10px; opacity:.5">سامانه پایش اخبار<br>محیط زیست ایران</div>
-    </div>
-</div>
+<!-- ══ Flash-Free Theme ══════════════════════════════════ -->
+<script>
+(function(){
+  var t = localStorage.getItem('theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 
-<!-- ===== MAIN ===== -->
-<div class="col-md-10 p-4">
+<!-- ══ Overlay برای موبایل ══════════════════════════════ -->
+<div class="sidebar-overlay" id="overlay" style="display:none" onclick="closeSidebar()"></div>
 
-    <!-- TOPBAR -->
-    <div class="topbar">
-        <div class="topbar-left">
-            <h6>🌱 سامانه ملی پایش اخبار محیط زیست ایران</h6>
-            <p id="topbarDate">در حال بارگذاری تاریخ...</p>
-        </div>
-        <div class="d-flex gap-2 align-items-center flex-wrap">
-            <input type="text" id="searchInput" placeholder="🔍 جستجو در اخبار...">
-            <button class="btn btn-sm btn-success px-3" onclick="loadDashboard()" style="border-radius:20px">
-                🔄 بروزرسانی
-            </button>
-        </div>
-    </div>
+<div class="layout">
 
-    <!-- TODAY BANNER -->
-    <div class="today-banner" id="topSection">
+  <!-- ════════════════ SIDEBAR ════════════════ -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <div class="logo-icon">🌿</div>
         <div>
-            <div class="date-fa" id="bannerDate">📅 در حال بارگذاری...</div>
-            <div class="time-fa" id="bannerTime"></div>
+          <div class="logo-text">پایش محیط زیست</div>
+          <div class="logo-sub">سازمان حفاظت محیط زیست</div>
         </div>
-        <div style="text-align:left">
-            <span class="live-dot"></span>
-            <span style="font-size:12px; opacity:.85">سیستم فعال است</span>
-            <div style="font-size:11px; opacity:.65; margin-top:4px">
-                بروزرسانی هر ۱ ساعت | ۱۱ منبع خبری
-            </div>
-        </div>
+      </div>
     </div>
 
-    <!-- STAT CARDS -->
-    <div class="row mb-2">
-        <div class="col-6 col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">📰</div>
-                <div class="stat-num" id="statTotal">—</div>
-                <div class="stat-label">کل اخبار</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">📆</div>
-                <div class="stat-num" id="statToday">—</div>
-                <div class="stat-label">اخبار امروز</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">🗞️</div>
-                <div class="stat-num" id="statTopSource" style="font-size:1rem;padding-top:6px">—</div>
-                <div class="stat-label">فعال‌ترین منبع</div>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card stat-card">
-                <div class="stat-icon">🏆</div>
-                <div class="stat-num" id="statTopCat" style="font-size:.85rem;padding-top:8px">—</div>
-                <div class="stat-label">پربازترین دسته</div>
-            </div>
-        </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label">منو اصلی</div>
+      <button class="nav-item active" onclick="scrollTo('stats-section')">
+        <span class="icon">📊</span> داشبورد اصلی
+      </button>
+      <button class="nav-item" onclick="scrollTo('charts-section')">
+        <span class="icon">📈</span> نمودارها
+      </button>
+      <button class="nav-item" onclick="scrollTo('pr-section')">
+        <span class="icon">🎯</span> مرکز فرماندهی
+      </button>
+      <button class="nav-item" onclick="scrollTo('news-section')">
+        <span class="icon">📰</span> همه اخبار
+      </button>
+
+      <div class="nav-label">دسته‌بندی‌ها</div>
+      <button class="nav-item" onclick="filterByCategory('آلودگی هوا')">
+        <span class="icon">🌬️</span> آلودگی هوا، آب و خاک
+      </button>
+      <button class="nav-item" onclick="filterByCategory('حیات وحش')">
+        <span class="icon">🐆</span> حیات وحش
+      </button>
+      <button class="nav-item" onclick="filterByCategory('تالاب')">
+        <span class="icon">🌊</span> تالاب‌ها و منابع آب
+      </button>
+      <button class="nav-item" onclick="filterByCategory('تغییر اقلیم')">
+        <span class="icon">🌡️</span> تغییر اقلیم
+      </button>
+      <button class="nav-item" onclick="filterByCategory('جنگل')">
+        <span class="icon">🌲</span> جنگل‌ها و مراتع
+      </button>
+      <button class="nav-item" onclick="filterByCategory('سیاست')">
+        <span class="icon">🏛️</span> سیاست‌ها و قوانین
+      </button>
+      <button class="nav-item" onclick="filterByCategory('توسعه')">
+        <span class="icon">♻️</span> توسعه پایدار
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle" onclick="toggleTheme()">
+        <span id="themeLabel">🌙 حالت تاریک</span>
+        <div class="toggle-track"><div class="toggle-thumb"></div></div>
+      </button>
+      <div style="margin-top:12px; font-size:11px; color:var(--text-muted); text-align:center; padding:0 8px">
+        آخرین بروزرسانی:<br>
+        <strong id="lastUpdate" style="color:var(--accent)">در حال بارگذاری...</strong>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ════════════════ MAIN ════════════════ -->
+  <main class="main">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <button class="menu-btn" onclick="openSidebar()">☰</button>
+      <div>
+        <div class="topbar-title">🌿 سامانه پایش اخبار محیط زیست</div>
+        <div class="topbar-sub">روابط عمومی سازمان حفاظت محیط زیست جمهوری اسلامی ایران</div>
+      </div>
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="جستجو در اخبار..." oninput="onSearch()"/>
+      </div>
     </div>
 
-    <!-- CHARTS -->
-    <div class="row" id="charts">
-        <div class="col-md-5">
-            <div class="card p-4">
-                <div class="chart-title">🗂️ توزیع دسته‌بندی اخبار</div>
-                <div class="chart-wrap">
-                    <canvas id="categoryChart"></canvas>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-7">
-            <div class="card p-4">
-                <div class="chart-title">📡 توزیع منابع خبری</div>
-                <div class="chart-wrap">
-                    <canvas id="sourceChart"></canvas>
-                </div>
-            </div>
-        </div>
-    </div>
+    <div class="content">
 
-    <!-- NEWS SECTION -->
-    <div class="card p-4" id="newsSection">
+      <!-- ═══ کارت‌های آماری ═══ -->
+      <div id="stats-section"></div>
+      <div class="stats-grid" id="statsGrid">
+        <div class="loading" style="grid-column:1/-1; padding:30px">
+          <div class="spinner"></div>
+          <span>در حال بارگذاری...</span>
+        </div>
+      </div>
+
+      <!-- ═══ نمودارها ═══ -->
+      <div id="charts-section"></div>
+      <div class="charts-grid">
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">🍩 توزیع دسته‌بندی‌ها</div>
+            <span class="chart-badge" id="catBadge">—</span>
+          </div>
+          <div class="chart-wrap chart-wrap-sm">
+            <canvas id="categoryChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">📊 اخبار به تفکیک منبع</div>
+            <span class="chart-badge" id="srcBadge">—</span>
+          </div>
+          <div class="chart-wrap chart-wrap-sm">
+            <canvas id="sourceChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card chart-card-full">
+          <div class="chart-header">
+            <div class="chart-title">📈 روند اخبار ۳۰ روز گذشته</div>
+            <span class="chart-badge" id="trendBadge">—</span>
+          </div>
+          <div class="chart-wrap">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ مرکز فرماندهی ═══ -->
+      <div id="pr-section"></div>
+      <div class="pr-section">
         <div class="section-header">
-            <div class="section-title">📰 آخرین اخبار ارسال شده به کانال‌ها</div>
-            <span class="news-count-badge" id="newsCountBadge">در حال بارگذاری...</span>
+          <div class="section-title">🎯 مرکز فرماندهی روابط عمومی</div>
+          <div class="pr-tabs">
+            <button class="pr-tab active" onclick="filterPR('all')">همه</button>
+            <button class="pr-tab red"    onclick="filterPR('critical')">🔴 بحرانی</button>
+            <button class="pr-tab yellow" onclick="filterPR('high')">🟡 حساس</button>
+            <button class="pr-tab"        onclick="filterPR('positive')">🟢 مثبت</button>
+          </div>
+        </div>
+        <div id="prList">
+          <div class="loading"><div class="spinner"></div><span>در حال تحلیل...</span></div>
+        </div>
+      </div>
+
+      <!-- ═══ لیست اخبار ═══ -->
+      <div id="news-section"></div>
+      <div class="news-section">
+        <div class="section-header">
+          <div class="section-title">📰 همه اخبار</div>
+          <div style="font-size:13px;color:var(--text-muted)">
+            <span id="newsCount">—</span> خبر
+          </div>
         </div>
 
-        <!-- فیلتر منابع -->
-        <div class="search-bar" id="sourceFilters">
-            <button class="filter-btn active" onclick="filterBySource('all', this)">همه</button>
+        <div class="filters-row">
+          <select class="filter-select" id="catFilter" onchange="applyFilters()">
+            <option value="">همه دسته‌بندی‌ها</option>
+            <option>🌬️ آلودگی هوا، آب و خاک</option>
+            <option>🐆 حیات وحش و تنوع زیستی</option>
+            <option>🌊 تالاب‌ها، دریاها و منابع آب</option>
+            <option>🌡️ تغییر اقلیم و بحران‌های طبیعی</option>
+            <option>🌲 جنگل‌ها، مراتع و منابع طبیعی</option>
+            <option>🏛️ سیاست‌ها، قوانین و سازمان محیط زیست</option>
+            <option>♻️ توسعه پایدار و انرژی پاک</option>
+          </select>
+          <select class="filter-select" id="srcFilter" onchange="applyFilters()">
+            <option value="">همه منابع</option>
+            <option>ایرنا</option>
+            <option>مهر</option>
+            <option>همشهری</option>
+            <option>خبرآنلاین</option>
+            <option>ایمنا</option>
+            <option>اطلاعات</option>
+            <option>صدا و سیما</option>
+            <option>سلامت نیوز</option>
+            <option>ایسنا</option>
+          </select>
+          <button class="btn btn-outline" onclick="resetFilters()">🔄 پاک کردن فیلتر</button>
         </div>
 
-        <div id="newsContainer">
-            <div class="loading-wrap">
-                <div class="spinner-border mb-3" role="status" style="width:2.5rem;height:2.5rem"></div>
-                <div>در حال بارگذاری اخبار...</div>
-            </div>
+        <div id="newsList" class="news-list">
+          <div class="loading"><div class="spinner"></div><span>در حال بارگذاری اخبار...</span></div>
         </div>
 
-        <nav id="paginationWrapper" class="mt-3 d-none">
-            <ul class="pagination justify-content-center" id="pagination"></ul>
-        </nav>
-    </div>
+        <div class="pagination" id="pagination"></div>
+      </div>
 
-</div><!-- /main -->
-</div>
-</div>
+      <!-- Footer Stats -->
+      <div class="footer-stats">
+        <span>🌿 سامانه پایش اخبار محیط زیست | روابط عمومی سازمان حفاظت محیط زیست</span>
+        <span>کل اخبار ذخیره‌شده: <strong id="totalStored">—</strong></span>
+        <span>آخرین بروزرسانی: <strong id="footerUpdate">—</strong></span>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div><!-- /layout -->
 
 <script>
-// ============================================================
-// ⚠️ یوزرنیم گیت‌هاب خود را اینجا وارد کنید
-// ============================================================
-const GITHUB_USER = "mehranfa2000";
-const GITHUB_REPO = "iran-env-news-bot";
-const JSON_URL    = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/data/news.json`;
+// ════════════════════════════════════════════════════════════
+//  JavaScript — داشبورد حرفه‌ای
+//  استانداردهای 2026: Flash-Free Theme، Chart.js+CSS Vars
+// ════════════════════════════════════════════════════════════
 
-const PER_PAGE = 20;
-let allNews      = [];
-let filteredNews = [];
-let currentPage  = 1;
-let activeSource = "all";
-let catChart     = null;
-let srcChart     = null;
+const JSON_URL = 'https://raw.githubusercontent.com/mehranfa2000/iran-env-news-bot/main/data/news.json';
+const PER_PAGE = 15;
 
-// ============================================================
-// تاریخ شمسی (جاوااسکریپت)
-// ============================================================
-function toShamsi(dateStr) {
-    if (!dateStr) return "—";
-    try {
-        // اگر قبلاً شمسی است (مثلاً 1405/09/01)
-        if (/^\d{4}\/\d{2}\/\d{2}/.test(dateStr)) return dateStr;
-        return dateStr; // برگشت همان رشته ذخیره شده از پایتون
-    } catch(e) { return dateStr; }
-}
+// ── State ─────────────────────────────────────────────────
+let allNews        = [];
+let filteredNews   = [];
+let currentPage    = 1;
+let currentPR      = 'all';
+let charts         = {};
 
-function getTodayShamsi() {
-    // تاریخ شمسی امروز با Intl
-    try {
-        const d = new Date();
-        return d.toLocaleDateString("fa-IR-u-ca-persian", {
-            year:"numeric", month:"long", day:"numeric", weekday:"long"
-        });
-    } catch(e) { return new Date().toLocaleDateString("fa-IR"); }
-}
-
-function getTimeShamsi() {
-    return new Date().toLocaleTimeString("fa-IR");
-}
-
-// ============================================================
-// بارگذاری اصلی
-// ============================================================
-async function loadDashboard() {
-    document.getElementById("newsContainer").innerHTML = `
-        <div class="loading-wrap">
-            <div class="spinner-border mb-3" role="status" style="width:2.5rem;height:2.5rem"></div>
-            <div>در حال بارگذاری اخبار از سرور...</div>
-        </div>`;
-
-    // بروزرسانی تاریخ
-    const todayFa = getTodayShamsi();
-    document.getElementById("bannerDate").innerText = "📅 " + todayFa;
-    document.getElementById("bannerTime").innerText = "⏰ " + getTimeShamsi();
-    document.getElementById("topbarDate").innerText = todayFa;
-
-    try {
-        const res = await fetch(JSON_URL + "?t=" + Date.now());
-        if (!res.ok) throw new Error(`خطای HTTP ${res.status}`);
-        allNews = await res.json();
-
-        if (!Array.isArray(allNews)) throw new Error("فرمت فایل JSON نادرست است");
-
-        filteredNews = [...allNews];
-        activeSource = "all";
-
-        renderStats();
-        renderCharts();
-        buildSourceFilters();
-        renderNews(1);
-
-        document.getElementById("lastUpdate").innerText = getTimeShamsi();
-
-    } catch(e) {
-        console.error(e);
-        document.getElementById("newsContainer").innerHTML = `
-            <div class="empty-state">
-                <div class="big-icon">⚠️</div>
-                <p class="text-danger">${e.message}</p>
-                <small class="text-muted">
-                    احتمالاً فایل <code>data/news.json</code> هنوز در گیت‌هاب ساخته نشده.<br>
-                    یک بار <b>Run workflow</b> را در گیت‌هاب اجرا کنید.
-                </small>
-            </div>`;
-    }
-}
-
-// ============================================================
-// آمار
-// ============================================================
-function renderStats() {
-    document.getElementById("statTotal").innerText = allNews.length;
-
-    const todayFa = new Date().toLocaleDateString("fa-IR");
-    const todayCount = allNews.filter(n => {
-        if (!n.timestamp && !n.date_shamsi) return false;
-        const d = n.date_shamsi || n.timestamp || "";
-        return d.startsWith(new Date().toLocaleDateString("fa-IR").slice(0,10));
-    }).length;
-    document.getElementById("statToday").innerText = todayCount;
-
-    const srcMap = {};
-    allNews.forEach(n => { const s = n.source_fa||n.source||""; srcMap[s]=(srcMap[s]||0)+1; });
-    const topSrc = Object.entries(srcMap).sort((a,b)=>b[1]-a[1])[0];
-    document.getElementById("statTopSource").innerText = topSrc ? topSrc[0] : "—";
-
-    const catMap = {};
-    allNews.forEach(n => { const c = n.category_fa||n.category||""; catMap[c]=(catMap[c]||0)+1; });
-    const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
-    document.getElementById("statTopCat").innerText = topCat
-        ? (allNews.find(x=>(x.category_fa||x.category)===topCat[0])?.emoji||"") + " " + topCat[0]
-        : "—";
-}
-
-// ============================================================
-// نمودارها
-// ============================================================
-const COLORS = ["#43a047","#1e88e5","#fb8c00","#e53935","#8e24aa","#6d4c41","#00897b","#039be5","#c0ca33","#f4511e"];
-
-function renderCharts() {
-    // نمودار دسته‌بندی
-    const catMap = {};
-    allNews.forEach(n => {
-        const k = (n.emoji||"🌱")+" "+(n.category_fa||n.category||"سایر");
-        catMap[k] = (catMap[k]||0) + 1;
-    });
-    if (catChart) catChart.destroy();
-    catChart = new Chart(document.getElementById("categoryChart"), {
-        type: "doughnut",
-        data: {
-            labels: Object.keys(catMap),
-            datasets: [{ data: Object.values(catMap), backgroundColor: COLORS, borderWidth: 2, hoverOffset: 8 }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-                legend: { position:"bottom", labels: { font:{size:10}, boxWidth:12, padding:8 } },
-                tooltip: { rtl: true }
-            },
-            cutout: "58%"
-        }
-    });
-
-    // نمودار منابع
-    const srcMap = {};
-    allNews.forEach(n => { const s = n.source_fa||n.source||""; srcMap[s]=(srcMap[s]||0)+1; });
-    const srcSorted = Object.entries(srcMap).sort((a,b)=>b[1]-a[1]);
-
-    if (srcChart) srcChart.destroy();
-    srcChart = new Chart(document.getElementById("sourceChart"), {
-        type: "bar",
-        data: {
-            labels: srcSorted.map(x=>x[0]),
-            datasets: [{
-                label: "تعداد اخبار",
-                data:  srcSorted.map(x=>x[1]),
-                backgroundColor: COLORS,
-                borderRadius: 8,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend:{display:false} },
-            scales: {
-                y: { beginAtZero:true, ticks:{stepSize:1}, grid:{color:"#f0f0f0"} },
-                x: { grid:{display:false} }
-            }
-        }
-    });
-}
-
-// ============================================================
-// دکمه‌های فیلتر منبع
-// ============================================================
-function buildSourceFilters() {
-    const srcMap = {};
-    allNews.forEach(n => { const s = n.source_fa||n.source||""; srcMap[s]=(srcMap[s]||0)+1; });
-
-    const container = document.getElementById("sourceFilters");
-    container.innerHTML = `<button class="filter-btn active" onclick="filterBySource('all',this)">همه (${allNews.length})</button>`;
-
-    Object.entries(srcMap).sort((a,b)=>b[1]-a[1]).forEach(([src, cnt]) => {
-        const btn = document.createElement("button");
-        btn.className = "filter-btn";
-        btn.textContent = `${src} (${cnt})`;
-        btn.onclick = function() { filterBySource(src, this); };
-        container.appendChild(btn);
-    });
-}
-
-function filterBySource(src, btn) {
-    activeSource = src;
-    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-
-    const q = document.getElementById("searchInput").value.trim().toLowerCase();
-    applyFilters(q, src);
-}
-
-// ============================================================
-// لیست اخبار
-// ============================================================
-function renderNews(page) {
-    currentPage = page;
-    const total = filteredNews.length;
-    const start = (page-1) * PER_PAGE;
-    const end   = Math.min(start + PER_PAGE, total);
-    const slice = filteredNews.slice(start, end);
-
-    document.getElementById("newsCountBadge").innerText =
-        total > 0 ? `${total} خبر یافت شد` : "خبری یافت نشد";
-
-    const container = document.getElementById("newsContainer");
-
-    if (!slice.length) {
-        container.innerHTML = `
-            <div class="empty-state">
-                <div class="big-icon">📭</div>
-                <p>هیچ خبری با این فیلتر یافت نشد.</p>
-            </div>`;
-        document.getElementById("paginationWrapper").classList.add("d-none");
-        return;
-    }
-
-    container.innerHTML = "";
-    slice.forEach(n => container.appendChild(buildCard(n)));
-    buildPagination(page, total);
-    window.scrollTo({top: document.getElementById("newsSection").offsetTop - 20, behavior:"smooth"});
-}
-
-function buildCard(n) {
-    const div = document.createElement("div");
-    div.className = "news-item";
-
-    const srcKey   = (n.source || "").replace(/[^a-zA-Z]/g,"");
-    const timeShow = n.timestamp_shamsi || n.pub_shamsi || n.timestamp || "—";
-    const catShow  = (n.emoji||"🌱") + " " + (n.category_fa || n.category || "");
-
-    div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
-            <div class="news-title flex-grow-1">${n.title || ""}</div>
-            <span class="src-badge src-${srcKey}">${n.source_fa || n.source || ""}</span>
-        </div>
-        <div class="news-meta">
-            <span class="meta-pill">${catShow}</span>
-            <span>📅 ${timeShow}</span>
-            ${n.score ? `<span>⭐ امتیاز: ${n.score}</span>` : ""}
-            <a href="${n.link||"#"}" target="_blank"
-               class="btn btn-sm btn-outline-success py-0 px-3 ms-auto"
-               style="border-radius:20px; font-size:11px">
-               مشاهده خبر 🔗
-            </a>
-        </div>`;
-    return div;
-}
-
-// ============================================================
-// صفحه‌بندی
-// ============================================================
-function buildPagination(current, total) {
-    const pages   = Math.ceil(total / PER_PAGE);
-    const wrapper = document.getElementById("paginationWrapper");
-    const ul      = document.getElementById("pagination");
-
-    if (pages <= 1) { wrapper.classList.add("d-none"); return; }
-    wrapper.classList.remove("d-none");
-    ul.innerHTML = "";
-
-    const item = (label, p, dis, act) => {
-        const li = document.createElement("li");
-        li.className = `page-item ${dis?"disabled":""} ${act?"active":""}`;
-        li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
-        if (!dis && !act) li.onclick = e => { e.preventDefault(); renderNews(p); };
-        return li;
-    };
-
-    ul.appendChild(item("«", current-1, current===1, false));
-    const s = Math.max(1, current-2), e = Math.min(pages, current+2);
-    for (let p=s; p<=e; p++) ul.appendChild(item(p, p, false, p===current));
-    ul.appendChild(item("»", current+1, current===pages, false));
-}
-
-// ============================================================
-// جستجو و فیلتر
-// ============================================================
-function applyFilters(q, src) {
-    filteredNews = allNews.filter(n => {
-        const matchSrc = src === "all" || (n.source_fa||n.source) === src;
-        const matchQ   = !q ||
-            (n.title||"").toLowerCase().includes(q) ||
-            (n.source_fa||"").toLowerCase().includes(q) ||
-            (n.category_fa||"").toLowerCase().includes(q);
-        return matchSrc && matchQ;
-    });
-    renderNews(1);
-}
-
-let searchTimer;
-document.addEventListener("DOMContentLoaded", () => {
-    document.getElementById("searchInput").addEventListener("input", function() {
-        clearTimeout(searchTimer);
-        searchTimer = setTimeout(() => {
-            applyFilters(this.value.trim().toLowerCase(), activeSource);
-        }, 400);
-    });
+// ── Init ──────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  updateThemeLabel();
+  loadData();
 });
 
-// ============================================================
-// ساعت زنده
-// ============================================================
-setInterval(() => {
-    document.getElementById("bannerTime").innerText = "⏰ " + getTimeShamsi();
-}, 60000);
+// ════════════════════════════════════════════════════════════
+//  بارگذاری داده
+// ════════════════════════════════════════════════════════════
+async function loadData() {
+  try {
+    const r = await fetch(JSON_URL + '?t=' + Date.now());
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const data = await r.json();
+    if (!Array.isArray(data)) throw new Error('فرمت داده نامعتبر');
 
-// شروع
-loadDashboard();
+    allNews      = data.reverse(); // جدیدترین اول
+    filteredNews = [...allNews];
+    currentPage  = 1;
+
+    renderStats();
+    renderCharts();
+    renderPR('all');
+    renderNews();
+    renderPagination();
+    updateLastUpdate();
+
+  } catch(e) {
+    console.error(e);
+    showError('خطا در بارگذاری داده‌ها: ' + e.message);
+  }
+}
+
+// ════════════════════════════════════════════════════════════
+//  کارت‌های آماری
+// ════════════════════════════════════════════════════════════
+function renderStats() {
+  const total    = allNews.length;
+  const sources  = new Set(allNews.map(a => a.source)).size;
+  const today    = getTodayCount();
+  const tg_ok    = allNews.filter(a => a.telegram_ok).length;
+
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-icon green">📰</div>
+      <div class="stat-info">
+        <div class="stat-num">${total.toLocaleString('fa-IR')}</div>
+        <div class="stat-label">کل اخبار ذخیره‌شده</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon blue">📡</div>
+      <div class="stat-info">
+        <div class="stat-num">${sources.toLocaleString('fa-IR')}</div>
+        <div class="stat-label">منابع خبری فعال</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon yellow">📅</div>
+      <div class="stat-info">
+        <div class="stat-num">${today.toLocaleString('fa-IR')}</div>
+        <div class="stat-label">اخبار امروز</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green">✅</div>
+      <div class="stat-info">
+        <div class="stat-num">${tg_ok.toLocaleString('fa-IR')}</div>
+        <div class="stat-label">ارسال موفق تلگرام</div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('totalStored').textContent = total.toLocaleString('fa-IR');
+}
+
+function getTodayCount() {
+  const today = new Date().toISOString().slice(0, 10);
+  return allNews.filter(a => (a.sent_at || '').startsWith(today)).length;
+}
+
+// ════════════════════════════════════════════════════════════
+//  نمودارها
+// ════════════════════════════════════════════════════════════
+function getChartColors() {
+  const style = getComputedStyle(document.documentElement);
+  return {
+    grid:   style.getPropertyValue('--chart-grid').trim(),
+    text:   style.getPropertyValue('--chart-text').trim(),
+    surface:style.getPropertyValue('--bg-surface').trim(),
+  };
+}
+
+const PALETTE = [
+  '#22c55e','#3b82f6','#f59e0b','#ef4444',
+  '#a855f7','#06b6d4','#f97316','#ec4899',
+  '#84cc16','#14b8a6',
+];
+
+function renderCharts() {
+  renderCategoryChart();
+  renderSourceChart();
+  renderTrendChart();
+}
+
+function renderCategoryChart() {
+  const counts = {};
+  allNews.forEach(a => {
+    const cat = (a.category || 'سایر').replace(/^[^\u0600-\u06FF]+/, '').trim() || 'سایر';
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+
+  const labels = Object.keys(counts);
+  const values = Object.values(counts);
+  const colors = getChartColors();
+
+  document.getElementById('catBadge').textContent = `${labels.length} دسته`;
+
+  if (charts.category) charts.category.destroy();
+  charts.category = new Chart(document.getElementById('categoryChart'), {
+    type: 'doughnut',
+    data: {
+      labels: labels,
+      datasets: [{
+        data:            values,
+        backgroundColor: PALETTE.slice(0, labels.length),
+        borderColor:     colors.surface,
+        borderWidth:     3,
+        hoverOffset:     8,
+      }]
+    },
+    options: {
+      responsive:         true,
+      maintainAspectRatio:false,
+      plugins: {
+        legend: {
+          position: 'right',
+          labels: {
+            color:     colors.text,
+            font:      { family:'Vazirmatn', size:11 },
+            padding:   10,
+            boxWidth:  12,
+            boxHeight: 12,
+          }
+        },
+        tooltip: {
+          callbacks: {
+            label: ctx => ` ${ctx.label}: ${ctx.parsed} خبر`
+          }
+        }
+      },
+      cutout: '65%',
+    }
+  });
+}
+
+function renderSourceChart() {
+  const counts = {};
+  allNews.forEach(a => {
+    const src = a.source || 'نامشخص';
+    counts[src] = (counts[src] || 0) + 1;
+  });
+
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 8);
+  const labels = sorted.map(e => e[0]);
+  const values = sorted.map(e => e[1]);
+  const colors = getChartColors();
+
+  document.getElementById('srcBadge').textContent = `${labels.length} منبع`;
+
+  if (charts.source) charts.source.destroy();
+  charts.source = new Chart(document.getElementById('sourceChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label:           'تعداد اخبار',
+        data:            values,
+        backgroundColor: PALETTE.slice(0, labels.length).map(c => c + 'cc'),
+        borderColor:     PALETTE.slice(0, labels.length),
+        borderWidth:     1,
+        borderRadius:    6,
+      }]
+    },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      indexAxis:           'y',
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.x} خبر` }
+        }
+      },
+      scales: {
+        x: {
+          grid:  { color:colors.grid },
+          ticks: { color:colors.text, font:{ family:'Vazirmatn', size:11 } }
+        },
+        y: {
+          grid:  { display:false },
+          ticks: { color:colors.text, font:{ family:'Vazirmatn', size:11 } }
+        }
+      }
+    }
+  });
+}
+
+function renderTrendChart() {
+  // ۳۰ روز گذشته
+  const days = [];
+  const counts = {};
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    days.push(key);
+    counts[key] = 0;
+  }
+
+  allNews.forEach(a => {
+    const day = (a.sent_at || '').slice(0, 10);
+    if (counts.hasOwnProperty(day)) counts[day]++;
+  });
+
+  const labels = days.map(d => {
+    const [,m,dd] = d.split('-');
+    return `${dd}/${m}`;
+  });
+  const values = days.map(d => counts[d]);
+  const colors = getChartColors();
+
+  document.getElementById('trendBadge').textContent = '۳۰ روز';
+
+  if (charts.trend) charts.trend.destroy();
+  charts.trend = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label:           'تعداد اخبار',
+        data:            values,
+        borderColor:     '#22c55e',
+        backgroundColor: 'rgba(34,197,94,0.1)',
+        borderWidth:     2.5,
+        fill:            true,
+        tension:         0.4,
+        pointBackgroundColor:'#22c55e',
+        pointRadius:     4,
+        pointHoverRadius:7,
+      }]
+    },
+    options: {
+      responsive:          true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: { label: ctx => ` ${ctx.parsed.y} خبر` }
+        }
+      },
+      scales: {
+        x: {
+          grid:  { color:colors.grid },
+          ticks: { color:colors.text, font:{ family:'Vazirmatn', size:10 }, maxTicksLimit:10 }
+        },
+        y: {
+          grid:  { color:colors.grid },
+          ticks: { color:colors.text, font:{ family:'Vazirmatn', size:11 }, stepSize:1 },
+          beginAtZero: true,
+        }
+      }
+    }
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  مرکز فرماندهی روابط عمومی
+//  (تحلیل ساده بر اساس کلیدواژه تا Phase 5)
+// ════════════════════════════════════════════════════════════
+const CRITICAL_WORDS = ['بحران','فاجعه','اضطرار','خطرناک','مرگ','تلف','آتش‌سوزی','سیل','زلزله','فوری'];
+const POSITIVE_WORDS = ['احیا','بهبود','توسعه','موفقیت','افتتاح','کاهش آلودگی','حفاظت موفق','رکورد'];
+const HIGH_WORDS     = ['آلودگی','تخریب','خشک شدن','شکار','قاچاق','تخلف','جریمه','اعتراض'];
+
+function getSensitivity(article) {
+  const text = (article.title + ' ' + (article.summary || '')).toLowerCase();
+  if (CRITICAL_WORDS.some(w => text.includes(w))) return 'critical';
+  if (POSITIVE_WORDS.some(w => text.includes(w))) return 'positive';
+  if (HIGH_WORDS.some(w => text.includes(w)))     return 'high';
+  return 'normal';
+}
+
+function getSensitivityLabel(s) {
+  return { critical:'🔴 بحرانی', high:'🟡 حساس', normal:'🔵 عادی', positive:'🟢 مثبت' }[s] || '⚪ نامشخص';
+}
+
+function getSensitivityClass(s) {
+  return { critical:'badge-critical', high:'badge-high', normal:'badge-normal', positive:'badge-positive' }[s] || 'badge-normal';
+}
+
+function getSuggestedAction(s) {
+  return {
+    critical: '⚡ انتشار فوری بیانیه رسمی — حداکثر ۲ ساعت',
+    high:     '👁️ رصد و آماده‌باش — پاسخ در صورت نیاز',
+    normal:   '📋 ثبت و آرشیو — اقدام خاص لازم نیست',
+    positive: '🎉 انتشار و تقدیر از اقدامات مثبت',
+  }[s] || '—';
+}
+
+function filterPR(type) {
+  currentPR = type;
+  document.querySelectorAll('.pr-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  renderPR(type);
+}
+
+function renderPR(type) {
+  let items = allNews.map(a => ({...a, _sens: getSensitivity(a)}));
+
+  if (type !== 'all') {
+    items = items.filter(a => a._sens === type);
+  } else {
+    // در حالت همه: فقط بحرانی و حساس نشان می‌دهیم
+    items = items.filter(a => ['critical','high'].includes(a._sens));
+  }
+
+  items = items.slice(0, 10);
+
+  if (!items.length) {
+    document.getElementById('prList').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✅</div>
+        <div>موردی برای نمایش وجود ندارد</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('prList').innerHTML = `
+    <div class="pr-items">
+      ${items.map(a => `
+        <div class="pr-item">
+          <div class="pr-item-top">
+            <div class="pr-item-title">${escHtml(a.title)}</div>
+            <span class="sensitivity-badge ${getSensitivityClass(a._sens)}">
+              ${getSensitivityLabel(a._sens)}
+            </span>
+          </div>
+          <div class="pr-meta">
+            <span>📰 ${escHtml(a.source || '—')}</span>
+            <span>🗂️ ${escHtml(a.category || '—')}</span>
+            <span>📅 ${escHtml(a.date_shamsi || a.published || '—')}</span>
+          </div>
+          <div style="font-size:13px;color:var(--text-secondary);line-height:1.6">
+            💡 <strong>پیشنهاد واکنش:</strong> ${getSuggestedAction(a._sens)}
+          </div>
+          <div class="pr-actions">
+            <a href="${escHtml(a.link)}" target="_blank" class="btn btn-outline">🔗 مشاهده خبر</a>
+            <button class="btn btn-primary" onclick="copyTitle('${escAttr(a.title)}')">📋 کپی عنوان</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function copyTitle(title) {
+  navigator.clipboard.writeText(title).then(() => {
+    alert('✅ عنوان کپی شد!');
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+//  لیست اخبار
+// ════════════════════════════════════════════════════════════
+function renderNews() {
+  const start = (currentPage - 1) * PER_PAGE;
+  const end   = start + PER_PAGE;
+  const page  = filteredNews.slice(start, end);
+
+  document.getElementById('newsCount').textContent = filteredNews.length.toLocaleString('fa-IR');
+
+  if (!page.length) {
+    document.getElementById('newsList').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">🔍</div>
+        <div>خبری با این فیلترها پیدا نشد</div>
+      </div>`;
+    return;
+  }
+
+  document.getElementById('newsList').innerHTML = page.map(a => {
+    const sens  = getSensitivity(a);
+    const badge = getSensitivityClass(sens);
+    return `
+      <div class="news-item" onclick="window.open('${escAttr(a.link)}','_blank')">
+        <div class="news-item-header">
+          <div class="news-title">${escHtml(a.title)}</div>
+          <span class="news-category">
+            ${escHtml(a.category_emoji||'🌿')} ${escHtml((a.category||'').replace(/^[^\u0600-\u06FF]+/,'').trim()||'محیط زیست')}
+          </span>
+        </div>
+        ${a.summary ? `<div class="news-summary">${escHtml(a.summary)}</div>` : ''}
+        <div class="news-footer">
+          <span>📰 ${escHtml(a.source||'—')}</span>
+          <span>📅 ${escHtml(a.date_shamsi||a.published||'—')}</span>
+          <span class="sensitivity-badge ${badge}" style="font-size:10px;padding:2px 8px">
+            ${getSensitivityLabel(sens)}
+          </span>
+          <a href="${escHtml(a.link)}" target="_blank" class="news-link" onclick="event.stopPropagation()">
+            مشاهده خبر ←
+          </a>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderPagination() {
+  const total = Math.ceil(filteredNews.length / PER_PAGE);
+  if (total <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+
+  let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>‹</button>`;
+
+  const range = paginationRange(currentPage, total);
+  range.forEach(p => {
+    if (p === '...') {
+      html += `<span style="padding:0 4px;color:var(--text-muted)">…</span>`;
+    } else {
+      html += `<button class="page-btn ${p===currentPage?'active':''}" onclick="goPage(${p})">${p.toLocaleString('fa-IR')}</button>`;
+    }
+  });
+
+  html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>›</button>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+function paginationRange(cur, total) {
+  if (total <= 7) return Array.from({length:total},(_,i)=>i+1);
+  const pages = [1];
+  if (cur > 3) pages.push('...');
+  for (let p = Math.max(2,cur-1); p <= Math.min(total-1,cur+1); p++) pages.push(p);
+  if (cur < total-2) pages.push('...');
+  pages.push(total);
+  return pages;
+}
+
+function goPage(p) {
+  const total = Math.ceil(filteredNews.length / PER_PAGE);
+  if (p < 1 || p > total) return;
+  currentPage = p;
+  renderNews();
+  renderPagination();
+  document.getElementById('news-section').scrollIntoView({behavior:'smooth'});
+}
+
+// ════════════════════════════════════════════════════════════
+//  فیلتر و جستجو
+// ════════════════════════════════════════════════════════════
+function applyFilters() {
+  const cat = document.getElementById('catFilter').value;
+  const src = document.getElementById('srcFilter').value;
+  const q   = document.getElementById('searchInput').value.trim().toLowerCase();
+
+  filteredNews = allNews.filter(a => {
+    const catMatch = !cat || (a.category||'').includes(cat.replace(/^[^\u0600-\u06FF]+/,'').trim());
+    const srcMatch = !src || (a.source||'') === src;
+    const qMatch   = !q   || (a.title||'').toLowerCase().includes(q)
+                           || (a.summary||'').toLowerCase().includes(q);
+    return catMatch && srcMatch && qMatch;
+  });
+
+  currentPage = 1;
+  renderNews();
+  renderPagination();
+}
+
+function onSearch()   { applyFilters() }
+
+function resetFilters() {
+  document.getElementById('catFilter').value  = '';
+  document.getElementById('srcFilter').value  = '';
+  document.getElementById('searchInput').value = '';
+  filteredNews = [...allNews];
+  currentPage  = 1;
+  renderNews();
+  renderPagination();
+}
+
+function filterByCategory(keyword) {
+  document.getElementById('catFilter').value = '';
+  document.getElementById('srcFilter').value = '';
+  document.getElementById('searchInput').value = keyword;
+  applyFilters();
+  document.getElementById('news-section').scrollIntoView({behavior:'smooth'});
+  closeSidebar();
+}
+
+// ════════════════════════════════════════════════════════════
+//  تم
+// ════════════════════════════════════════════════════════════
+function toggleTheme() {
+  const html  = document.documentElement;
+  const theme = html.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', theme);
+  localStorage.setItem('theme', theme);
+  updateThemeLabel();
+  // بروزرسانی رنگ نمودارها
+  setTimeout(() => { renderCharts(); }, 100);
+}
+
+function updateThemeLabel() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  document.getElementById('themeLabel').textContent = isDark ? '🌙 حالت تاریک' : '☀️ حالت روشن';
+}
+
+// ════════════════════════════════════════════════════════════
+//  موبایل Sidebar
+// ════════════════════════════════════════════════════════════
+function openSidebar() {
+  document.getElementById('sidebar').classList.add('open');
+  const ov = document.getElementById('overlay');
+  ov.style.display = 'block';
+}
+
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('overlay').style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════════
+//  Scroll به بخش‌ها
+// ════════════════════════════════════════════════════════════
+function scrollTo(id) {
+  document.getElementById(id).scrollIntoView({behavior:'smooth', block:'start'});
+  closeSidebar();
+  document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+  event.target.classList.add('active');
+}
+
+// ════════════════════════════════════════════════════════════
+//  آخرین بروزرسانی
+// ════════════════════════════════════════════════════════════
+function updateLastUpdate() {
+  if (!allNews.length) return;
+  const last = allNews[0];
+  const date = last.sent_at ? new Date(last.sent_at).toLocaleString('fa-IR') : '—';
+  document.getElementById('lastUpdate').textContent  = date;
+  document.getElementById('footerUpdate').textContent = date;
+}
+
+// ════════════════════════════════════════════════════════════
+//  خطا
+// ════════════════════════════════════════════════════════════
+function showError(msg) {
+  const html = `
+    <div class="empty-state" style="grid-column:1/-1">
+      <div class="empty-icon">❌</div>
+      <div style="color:var(--red)">${escHtml(msg)}</div>
+      <button class="btn btn-primary" onclick="loadData()" style="margin-top:16px">🔄 تلاش مجدد</button>
+    </div>`;
+  document.getElementById('statsGrid').innerHTML = html;
+  document.getElementById('newsList').innerHTML  = '';
+  document.getElementById('prList').innerHTML    = '';
+}
+
+// ════════════════════════════════════════════════════════════
+//  امنیت — escape HTML
+// ════════════════════════════════════════════════════════════
+function escHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;')
+    .replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;')
+    .replace(/'/g,'&#039;');
+}
+
+function escAttr(str) {
+  if (!str) return '';
+  return String(str).replace(/'/g, "\\'").replace(/"/g,'&quot;');
+}
 </script>
 </body>
 </html>
