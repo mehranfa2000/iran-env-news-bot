@@ -1,230 +1,160 @@
 # ============================================================
-#  main.py — سامانه هوشمند پایش اخبار محیط زیست ایران
-#  نسخه: 2.0 | تاریخ: آذر ۱۴۰۵
-#  استانداردهای 2026: JSON storage, dedup, Shamsi dates
+#  main.py — هماهنگ‌کننده اصلی
+#  نسخه 2.0 | آذر ۱۴۰۵
 # ============================================================
 
 import json
-import os
-import time
 import sys
+import time
 from pathlib import Path
 from datetime import datetime, timezone
 
-# ── ماژول‌های داخلی پروژه ──────────────────────────────────
 from src.collector import collect_all_feeds
 from src.filter    import filter_news
 from src.sender    import send_to_telegram, send_to_bale
-from src.config    import (
-    MAX_NEWS_PER_RUN,
-    DELAY_BETWEEN_SENDS,
-)
+from src.utils     import parse_rss_date, now_utc_iso, now_shamsi
+from src.config    import MAX_NEWS_PER_RUN, DELAY_BETWEEN_SENDS, MAX_STORED_NEWS
 
-# ── تنظیمات ──────────────────────────────────────────────────
-NEWS_FILE   = Path("data/news.json")   # مسیر فایل ذخیره اخبار
-MAX_STORED  = 500                       # حداکثر اخبار نگه‌داشته‌شده
+NEWS_FILE = Path("data/news.json")
 
-
-# ════════════════════════════════════════════════════════════
-#  توابع کمکی
-# ════════════════════════════════════════════════════════════
 
 def load_news() -> list:
-    """
-    بارگذاری اخبار قبلی از news.json
-    اگر فایل وجود نداشت یا خراب بود، لیست خالی برمی‌گرداند.
-    """
     if not NEWS_FILE.exists():
-        print("📂 فایل news.json وجود ندارد — لیست خالی شروع می‌شود.")
+        print("📂 news.json وجود ندارد — از صفر شروع می‌شود")
         return []
     try:
         with open(NEWS_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, list):
-            print(f"📂 اخبار موجود بارگذاری شد: {len(data)} مورد")
+            print(f"📂 {len(data)} خبر قبلی بارگذاری شد")
             return data
-        else:
-            print("⚠️  ساختار news.json نامعتبر است — لیست خالی شروع می‌شود.")
-            return []
-    except json.JSONDecodeError as e:
-        print(f"⚠️  خطا در خواندن news.json: {e} — لیست خالی شروع می‌شود.")
         return []
-    except IOError as e:
-        print(f"❌ خطای فایل: {e}")
+    except Exception as e:
+        print(f"⚠️  خطا در خواندن news.json: {e}")
         return []
 
 
 def save_news(news_list: list) -> bool:
-    """
-    ذخیره اخبار در news.json
-    فقط MAX_STORED مورد آخر نگه داشته می‌شود.
-    مقدار True اگر موفق بود، False در صورت خطا.
-    """
     try:
         NEWS_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-        # فقط جدیدترین MAX_STORED خبر را نگه می‌داریم
-        trimmed = news_list[-MAX_STORED:]
-
+        trimmed = news_list[-MAX_STORED_NEWS:]
         with open(NEWS_FILE, "w", encoding="utf-8") as f:
             json.dump(trimmed, f, ensure_ascii=False, indent=2)
-
-        print(f"💾 news.json ذخیره شد — {len(trimmed)} خبر")
+        print(f"💾 {len(trimmed)} خبر در news.json ذخیره شد")
         return True
-
-    except IOError as e:
-        print(f"❌ خطا در ذخیره news.json: {e}")
+    except Exception as e:
+        print(f"❌ خطا در ذخیره: {e}")
         return False
 
 
-def get_existing_links(news_list: list) -> set:
-    """
-    مجموعه لینک‌های موجود برای تشخیص تکراری‌ها
-    """
-    return {
-        item.get("link", "").strip()
-        for item in news_list
-        if item.get("link", "").strip()
-    }
-
-
-def now_utc_iso() -> str:
-    """زمان فعلی UTC به فرمت ISO 8601"""
-    return datetime.now(timezone.utc).isoformat()
-
-
-# ════════════════════════════════════════════════════════════
-#  تابع اصلی
-# ════════════════════════════════════════════════════════════
-
 def main():
-    start_time = time.time()
+    t0 = time.time()
     print("=" * 60)
-    print("🌿 سامانه پایش اخبار محیط زیست ایران")
-    print(f"⏰ شروع: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print("🌿 سامانه پایش اخبار محیط زیست ایران — نسخه ۲.۰")
+    print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC")
     print("=" * 60)
 
-    # ── مرحله ۱: بارگذاری اخبار قبلی ───────────────────────
-    print("\n📌 مرحله ۱: بارگذاری اخبار قبلی...")
-    existing_news  = load_news()
-    existing_links = get_existing_links(existing_news)
+    # ── ۱. بارگذاری اخبار قبلی ──────────────────────────────
+    existing  = load_news()
+    seen_links = {a.get("link", "").strip() for a in existing if a.get("link")}
 
-    # ── مرحله ۲: جمع‌آوری از RSS فیدها ─────────────────────
-    print("\n📌 مرحله ۲: جمع‌آوری از منابع خبری...")
+    # ── ۲. جمع‌آوری ─────────────────────────────────────────
+    print("\n📌 مرحله ۱: جمع‌آوری...")
     try:
-        raw_articles = collect_all_feeds()
-        print(f"📡 تعداد اخبار دریافتی از همه منابع: {len(raw_articles)}")
+        raw = collect_all_feeds()
     except Exception as e:
-        print(f"❌ خطا در جمع‌آوری اخبار: {e}")
-        raw_articles = []
+        print(f"❌ جمع‌آوری ناموفق: {e}")
+        save_news(existing)
+        sys.exit(0)
 
-    if not raw_articles:
-        print("⚠️  هیچ خبری دریافت نشد — اجرا پایان یافت.")
-        save_news(existing_news)
-        return
-
-    # ── مرحله ۳: فیلتر کلیدواژه‌ای ۳ لایه ─────────────────
-    print("\n📌 مرحله ۳: فیلتر محیط‌زیستی (۳ لایه)...")
+    # ── ۳. فیلتر ────────────────────────────────────────────
+    print("\n📌 مرحله ۲: فیلتر محیط‌زیستی...")
     try:
-        filtered_articles = filter_news(raw_articles)
-        print(f"✅ اخبار محیط‌زیستی پس از فیلتر: {len(filtered_articles)}")
+        filtered = filter_news(raw)
+        print(f"✅ {len(filtered)} خبر محیط‌زیستی پیدا شد")
     except Exception as e:
-        print(f"❌ خطا در فیلتر: {e}")
-        save_news(existing_news)
-        return
+        print(f"❌ فیلتر ناموفق: {e}")
+        save_news(existing)
+        sys.exit(0)
 
-    # ── مرحله ۴: حذف اخبار تکراری ──────────────────────────
-    print("\n📌 مرحله ۴: حذف اخبار تکراری...")
-    new_articles = [
-        a for a in filtered_articles
-        if a.get("link", "").strip()
-        and a["link"].strip() not in existing_links
+    # ── ۴. حذف تکراری ───────────────────────────────────────
+    print("\n📌 مرحله ۳: حذف تکراری...")
+    new_items = [
+        a for a in filtered
+        if a.get("link", "").strip() and a["link"].strip() not in seen_links
     ]
-    print(f"🆕 اخبار جدید (غیرتکراری): {len(new_articles)}")
+    print(f"🆕 {len(new_items)} خبر جدید")
 
-    # محدود به MAX_NEWS_PER_RUN خبر در هر اجرا
-    if len(new_articles) > MAX_NEWS_PER_RUN:
-        print(f"⚡ محدود شد به {MAX_NEWS_PER_RUN} خبر در این اجرا")
-        new_articles = new_articles[:MAX_NEWS_PER_RUN]
+    if len(new_items) > MAX_NEWS_PER_RUN:
+        new_items = new_items[:MAX_NEWS_PER_RUN]
+        print(f"⚡ محدود به {MAX_NEWS_PER_RUN}")
 
-    if not new_articles:
-        print("ℹ️  خبر جدیدی برای ارسال وجود ندارد.")
-        save_news(existing_news)
+    if not new_items:
+        print("ℹ️  خبر جدیدی نیست")
+        save_news(existing)
         return
 
-    # ── مرحله ۵: ارسال به کانال‌ها ──────────────────────────
-    print(f"\n📌 مرحله ۵: ارسال {len(new_articles)} خبر به کانال‌ها...")
-    print("-" * 40)
+    # ── ۵. ارسال ────────────────────────────────────────────
+    print(f"\n📌 مرحله ۴: ارسال {len(new_items)} خبر...")
+    sent = tg_fail = bale_fail = 0
 
-    sent_count      = 0
-    tg_fail_count   = 0
-    bale_fail_count = 0
+    for i, art in enumerate(new_items, 1):
+        print(f"\n  [{i}/{len(new_items)}] {art.get('title','')[:55]}...")
 
-    for i, article in enumerate(new_articles, 1):
-        title = article.get("title", "بدون عنوان")[:60]
-        print(f"\n  [{i}/{len(new_articles)}] {title}...")
+        # افزودن تاریخ شمسی
+        art["date_shamsi"] = parse_rss_date(art.get("published", ""))
 
-        tg_ok   = False
-        bale_ok = False
+        tg_ok = bale_ok = False
 
-        # ارسال به تلگرام
         try:
-            tg_ok = send_to_telegram(article)
-            status = "✅" if tg_ok else "❌"
-            print(f"    تلگرام: {status}")
+            tg_ok = send_to_telegram(art)
+            print(f"    تلگرام: {'✅' if tg_ok else '❌'}")
         except Exception as e:
-            print(f"    تلگرام: ❌ خطا — {e}")
-            tg_fail_count += 1
+            print(f"    تلگرام: ❌ {e}")
+            tg_fail += 1
 
         time.sleep(DELAY_BETWEEN_SENDS)
 
-        # ارسال به بله
         try:
-            bale_ok = send_to_bale(article)
-            status = "✅" if bale_ok else "❌"
-            print(f"    بله:     {status}")
+            bale_ok = send_to_bale(art)
+            print(f"    بله:     {'✅' if bale_ok else '❌'}")
         except Exception as e:
-            print(f"    بله:     ❌ خطا — {e}")
-            bale_fail_count += 1
+            print(f"    بله:     ❌ {e}")
+            bale_fail += 1
 
         time.sleep(DELAY_BETWEEN_SENDS)
 
-        # افزودن به لیست اخبار (حتی اگر ارسال ناموفق بود)
-        # دلیل: از ارسال مکرر جلوگیری می‌کند
-        article["sent_at"]      = now_utc_iso()
-        article["telegram_ok"]  = tg_ok
-        article["bale_ok"]      = bale_ok
+        art["sent_at"]     = now_utc_iso()
+        art["telegram_ok"] = tg_ok
+        art["bale_ok"]     = bale_ok
 
-        existing_news.append(article)
-        existing_links.add(article["link"].strip())
+        existing.append(art)
+        seen_links.add(art["link"].strip())
 
         if tg_ok or bale_ok:
-            sent_count += 1
+            sent += 1
 
-    # ── مرحله ۶: ذخیره در news.json ─────────────────────────
-    print(f"\n📌 مرحله ۶: ذخیره در news.json...")
-    saved = save_news(existing_news)
+    # ── ۶. ذخیره ────────────────────────────────────────────
+    print("\n📌 مرحله ۵: ذخیره...")
+    ok = save_news(existing)
 
-    # ── گزارش نهایی ──────────────────────────────────────────
-    elapsed = round(time.time() - start_time, 1)
+    # ── گزارش ───────────────────────────────────────────────
+    elapsed = round(time.time() - t0, 1)
     print("\n" + "=" * 60)
-    print("📊 گزارش اجرا:")
-    print(f"   • اخبار دریافتی از RSS:    {len(raw_articles)}")
-    print(f"   • بعد از فیلتر محیط‌زیست:  {len(filtered_articles)}")
-    print(f"   • اخبار جدید (غیرتکراری): {len(new_articles)}")
-    print(f"   • ارسال موفق:              {sent_count}")
-    print(f"   • خطای تلگرام:             {tg_fail_count}")
-    print(f"   • خطای بله:                {bale_fail_count}")
-    print(f"   • کل اخبار ذخیره‌شده:      {len(existing_news)}")
-    print(f"   • ذخیره news.json:         {'✅' if saved else '❌'}")
-    print(f"   • زمان اجرا:               {elapsed} ثانیه")
+    print("📊 گزارش نهایی:")
+    print(f"   دریافتی:       {len(raw)}")
+    print(f"   بعد از فیلتر:  {len(filtered)}")
+    print(f"   جدید:          {len(new_items)}")
+    print(f"   ارسال موفق:    {sent}")
+    print(f"   خطای تلگرام:  {tg_fail}")
+    print(f"   خطای بله:     {bale_fail}")
+    print(f"   کل ذخیره‌شده:  {len(existing)}")
+    print(f"   زمان اجرا:    {elapsed}s")
     print("=" * 60)
-    print("✅ اجرا با موفقیت پایان یافت.")
 
-    # اگر ذخیره موفق نبود، با exit code خطا خارج شو
-    # تا GitHub Actions متوجه مشکل شود
-    if not saved:
+    if not ok:
         sys.exit(1)
+    print("✅ پایان موفق")
 
 
 if __name__ == "__main__":
