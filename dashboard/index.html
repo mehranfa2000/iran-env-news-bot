@@ -3,1233 +3,1214 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>سامانه پایش اخبار محیط‌زیست ایران</title>
+<title>مرکز فرماندهی روابط‌عمومی — سازمان حفاظت محیط‌زیست ایران</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@100;200;300;400;500;600;700;800;900&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-/* ═══════════════════════════════════════════
-   متغیرهای CSS — تم روشن/تاریک
-═══════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════
+   متغیرهای CSS
+═══════════════════════════════════════════════════════ */
 :root {
-  --bg-primary:    #0a0f1e;
-  --bg-secondary:  #111827;
-  --bg-card:       #1a2235;
-  --bg-card-hover: #1e2a40;
-  --border:        #2d3748;
-  --border-glow:   #3b82f6;
-  --text-primary:  #f1f5f9;
-  --text-secondary:#94a3b8;
-  --text-muted:    #64748b;
-  --accent-blue:   #3b82f6;
-  --accent-green:  #10b981;
-  --accent-red:    #ef4444;
-  --accent-yellow: #f59e0b;
-  --accent-purple: #8b5cf6;
-  --accent-cyan:   #06b6d4;
-  --gradient-1:    linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  --gradient-2:    linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-  --gradient-3:    linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  --gradient-4:    linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  --shadow-card:   0 4px 24px rgba(0,0,0,0.4);
-  --shadow-glow:   0 0 20px rgba(59,130,246,0.3);
-  --radius:        12px;
-  --radius-lg:     20px;
+  --bg-0:       #060b18;
+  --bg-1:       #0d1424;
+  --bg-2:       #111b30;
+  --bg-3:       #172038;
+  --bg-card:    #1a2540;
+  --bg-hover:   #1f2d4a;
+  --border:     rgba(255,255,255,0.07);
+  --border-2:   rgba(255,255,255,0.12);
+  --text-1:     #f0f4ff;
+  --text-2:     #8b9ec7;
+  --text-3:     #4d5e80;
+  --blue:       #4f8ef7;
+  --blue-glow:  rgba(79,142,247,0.3);
+  --green:      #14c97e;
+  --green-glow: rgba(20,201,126,0.3);
+  --red:        #f05252;
+  --red-glow:   rgba(240,82,82,0.3);
+  --yellow:     #f5a623;
+  --yellow-glow:rgba(245,166,35,0.3);
+  --purple:     #9b6dff;
+  --purple-glow:rgba(155,109,255,0.3);
+  --cyan:       #22d3ee;
+  --cyan-glow:  rgba(34,211,238,0.3);
+  --orange:     #ff7849;
+  --r:          12px;
+  --r-lg:       18px;
+  --r-xl:       24px;
+  --sh:         0 8px 32px rgba(0,0,0,0.5);
+  --sh-glow:    0 0 24px var(--blue-glow);
+  --trans:      all 0.25s cubic-bezier(0.4,0,0.2,1);
 }
-
 [data-theme="light"] {
-  --bg-primary:    #f0f4f8;
-  --bg-secondary:  #e2e8f0;
-  --bg-card:       #ffffff;
-  --bg-card-hover: #f8fafc;
-  --border:        #e2e8f0;
-  --border-glow:   #3b82f6;
-  --text-primary:  #1e293b;
-  --text-secondary:#475569;
-  --text-muted:    #94a3b8;
-  --shadow-card:   0 4px 24px rgba(0,0,0,0.08);
+  --bg-0:    #eef2f9;
+  --bg-1:    #e4ebf7;
+  --bg-2:    #dce6f5;
+  --bg-3:    #d0dcf0;
+  --bg-card: #ffffff;
+  --bg-hover:#f4f7fe;
+  --border:  rgba(0,0,0,0.07);
+  --border-2:rgba(0,0,0,0.12);
+  --text-1:  #1a2540;
+  --text-2:  #4d5e80;
+  --text-3:  #8b9ec7;
 }
 
-/* ═══════════════════════════════════════════
-   ریست و پایه
-═══════════════════════════════════════════ */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ═══════════════════════════════════════════════════════
+   پایه
+═══════════════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  font-family:'Vazirmatn',system-ui,sans-serif;
+  background:var(--bg-0);
+  color:var(--text-1);
+  min-height:100vh;
+  overflow-x:hidden;
+  transition:background .3s,color .3s;
+}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg-1)}
+::-webkit-scrollbar-thumb{background:var(--blue);border-radius:3px}
+a{text-decoration:none;color:inherit}
+button{font-family:'Vazirmatn',inherit;cursor:pointer}
 
-html { scroll-behavior: smooth; }
+/* ═══════════════════════════════════════════════════════
+   هدر فوق‌پیشرفته
+═══════════════════════════════════════════════════════ */
+.topbar{
+  position:sticky;top:0;z-index:999;
+  background:rgba(13,20,36,0.95);
+  backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border-2);
+  height:60px;
+  display:flex;align-items:center;
+  padding:0 20px;gap:16px;
+}
+.topbar-brand{
+  display:flex;align-items:center;gap:10px;
+  flex-shrink:0;cursor:pointer;
+}
+.brand-logo{
+  width:38px;height:38px;
+  background:linear-gradient(135deg,#14c97e,#4f8ef7);
+  border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;
+  box-shadow:0 0 16px var(--green-glow);
+  transition:var(--trans);
+}
+.brand-logo:hover{transform:scale(1.1);box-shadow:0 0 24px var(--green-glow)}
+.brand-text{line-height:1.2}
+.brand-title{font-size:14px;font-weight:700;color:var(--text-1)}
+.brand-sub{font-size:11px;color:var(--text-2)}
 
-body {
-  font-family: 'Vazirmatn', system-ui, sans-serif;
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  min-height: 100vh;
-  font-size: 14px;
-  line-height: 1.7;
-  transition: background .3s, color .3s;
+/* نوار وضعیت زنده */
+.live-bar{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 12px;
+  background:rgba(20,201,126,0.1);
+  border:1px solid rgba(20,201,126,0.3);
+  border-radius:20px;
+  font-size:11px;color:var(--green);
+  flex-shrink:0;
+}
+.live-dot{
+  width:7px;height:7px;border-radius:50%;
+  background:var(--green);
+  animation:pulse-dot 2s infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{box-shadow:0 0 0 0 rgba(20,201,126,.6)}
+  50%{box-shadow:0 0 0 6px rgba(20,201,126,0)}
 }
 
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--bg-secondary); }
-::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 3px; }
+/* سطح هشدار */
+.alert-level{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 12px;
+  border-radius:20px;
+  font-size:11px;font-weight:600;
+  flex-shrink:0;cursor:pointer;
+  transition:var(--trans);
+}
+.alert-level.red{background:rgba(240,82,82,.15);border:1px solid rgba(240,82,82,.4);color:var(--red)}
+.alert-level.yellow{background:rgba(245,166,35,.15);border:1px solid rgba(245,166,35,.4);color:var(--yellow)}
+.alert-level.green{background:rgba(20,201,126,.15);border:1px solid rgba(20,201,126,.4);color:var(--green)}
+.alert-level.blue{background:rgba(79,142,247,.15);border:1px solid rgba(79,142,247,.4);color:var(--blue)}
 
-/* ═══════════════════════════════════════════
-   هدر
-═══════════════════════════════════════════ */
-.header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  backdrop-filter: blur(20px);
-  padding: 0 24px;
-  height: 64px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+.topbar-right{margin-right:auto;display:flex;align-items:center;gap:8px}
+
+.icon-btn{
+  width:34px;height:34px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--bg-2);
+  color:var(--text-2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;
+  transition:var(--trans);
+  position:relative;
+}
+.icon-btn:hover{border-color:var(--blue);color:var(--blue);background:var(--bg-3)}
+
+.badge{
+  position:absolute;top:-4px;left:-4px;
+  width:16px;height:16px;border-radius:50%;
+  background:var(--red);
+  font-size:9px;color:#fff;font-weight:700;
+  display:flex;align-items:center;justify-content:center;
 }
 
-.header-brand {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--text-primary);
-  text-decoration: none;
-  flex-shrink: 0;
-}
+#clock{font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;white-space:nowrap}
 
-.header-brand .logo {
-  width: 40px; height: 40px;
-  background: var(--gradient-2);
-  border-radius: 10px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 20px;
-  box-shadow: 0 0 15px rgba(16,185,129,0.4);
-}
-
-.header-brand span { font-size: 13px; color: var(--text-secondary); font-weight: 400; display: block; }
-
-.header-nav { display: flex; align-items: center; gap: 8px; }
-
-.nav-btn {
-  padding: 7px 16px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  transition: all .2s;
-  text-decoration: none;
-  display: flex; align-items: center; gap: 6px;
-}
-
-.nav-btn:hover, .nav-btn.active {
-  background: var(--bg-card);
-  color: var(--text-primary);
-  border-color: var(--border-glow);
-}
-
-.nav-btn.primary {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  border: none;
-  color: white;
-  font-weight: 600;
-  box-shadow: 0 0 15px rgba(59,130,246,0.4);
-}
-
-.nav-btn.primary:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 0 25px rgba(59,130,246,0.6);
-}
-
-.theme-btn {
-  width: 36px; height: 36px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-primary);
-  cursor: pointer;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-  transition: all .2s;
-}
-
-.theme-btn:hover { border-color: var(--border-glow); }
-
-#refresh-time { font-size: 11px; color: var(--text-muted); }
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    لایه‌بندی اصلی
-═══════════════════════════════════════════ */
-.layout {
-  display: grid;
-  grid-template-columns: 240px 1fr;
-  min-height: calc(100vh - 64px);
+═══════════════════════════════════════════════════════ */
+.shell{display:flex;min-height:calc(100vh - 60px)}
+
+/* ═══ سایدبار ═══ */
+.sidebar{
+  width:220px;flex-shrink:0;
+  background:var(--bg-1);
+  border-left:1px solid var(--border);
+  display:flex;flex-direction:column;
+  position:sticky;top:60px;
+  height:calc(100vh - 60px);
+  overflow-y:auto;
+  transition:width .3s;
+  padding:12px 0;
 }
+.sidebar.collapsed{width:52px}
 
-.sidebar {
-  background: var(--bg-secondary);
-  border-left: 1px solid var(--border);
-  padding: 20px 12px;
-  position: sticky;
-  top: 64px;
-  height: calc(100vh - 64px);
-  overflow-y: auto;
+.sb-section{padding:0 10px;margin-bottom:4px}
+.sb-label{
+  font-size:10px;font-weight:700;
+  color:var(--text-3);
+  text-transform:uppercase;letter-spacing:1px;
+  padding:8px 6px 4px;
+  white-space:nowrap;overflow:hidden;
 }
+.sidebar.collapsed .sb-label{opacity:0}
 
-.sidebar-section { margin-bottom: 24px; }
-
-.sidebar-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  padding: 0 8px;
-  margin-bottom: 8px;
+.sb-item{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;
+  border-radius:9px;
+  border:1px solid transparent;
+  color:var(--text-2);
+  font-size:13px;
+  transition:var(--trans);
+  cursor:pointer;
+  white-space:nowrap;overflow:hidden;
+  margin-bottom:1px;
+  background:none;width:100%;text-align:right;
 }
-
-.sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  border-radius: 8px;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all .2s;
-  font-size: 13px;
-  border: none;
-  background: none;
-  width: 100%;
-  text-align: right;
-  text-decoration: none;
+.sb-item:hover{background:var(--bg-2);color:var(--text-1);border-color:var(--border)}
+.sb-item.active{
+  background:linear-gradient(135deg,rgba(79,142,247,.18),rgba(155,109,255,.12));
+  border-color:rgba(79,142,247,.4);
+  color:var(--blue);font-weight:600;
 }
+.sb-icon{font-size:17px;flex-shrink:0;width:20px;text-align:center}
+.sidebar.collapsed .sb-text{display:none}
 
-.sidebar-link:hover { background: var(--bg-card); color: var(--text-primary); }
-.sidebar-link.active {
-  background: rgba(59,130,246,0.15);
-  color: var(--accent-blue);
-  font-weight: 600;
-  border-left: 3px solid var(--accent-blue);
+.sb-count{
+  margin-right:auto;flex-shrink:0;
+  font-size:10px;padding:1px 7px;
+  background:rgba(79,142,247,.2);
+  color:var(--blue);border-radius:10px;
+  font-weight:700;
 }
+.sidebar.collapsed .sb-count{display:none}
 
-.sidebar-link .icon { font-size: 16px; flex-shrink: 0; }
-
-.main { padding: 24px; overflow-x: hidden; }
-
-/* ═══════════════════════════════════════════
-   کارت‌های آمار
-═══════════════════════════════════════════ */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
+/* وضعیت منابع در سایدبار */
+.sb-sources{padding:10px;margin-top:auto}
+.sb-source-item{
+  display:flex;align-items:center;gap:6px;
+  padding:4px 6px;
+  border-radius:6px;
+  font-size:11px;color:var(--text-2);
+  margin-bottom:2px;
 }
-
-.stat-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
-  transition: transform .2s, box-shadow .2s;
+.sb-dot{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;
 }
+.sb-dot.active{background:var(--green)}
+.sb-dot.inactive{background:var(--text-3)}
 
-.stat-card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-glow);
+/* ═══ محتوای اصلی ═══ */
+.main{flex:1;padding:20px;min-width:0;overflow-x:hidden}
+
+/* ═══════════════════════════════════════════════════════
+   کارت‌های KPI
+═══════════════════════════════════════════════════════ */
+.kpi-row{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:12px;
+  margin-bottom:20px;
 }
-
-.stat-card::before {
-  content: '';
-  position: absolute;
-  top: 0; right: 0;
-  width: 80px; height: 80px;
-  border-radius: 50%;
-  opacity: .08;
-  transform: translate(20px, -20px);
+.kpi{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:16px;
+  position:relative;overflow:hidden;
+  transition:var(--trans);
+  cursor:default;
 }
-
-.stat-card.blue::before   { background: var(--accent-blue); }
-.stat-card.green::before  { background: var(--accent-green); }
-.stat-card.red::before    { background: var(--accent-red); }
-.stat-card.yellow::before { background: var(--accent-yellow); }
-
-.stat-icon {
-  font-size: 28px;
-  margin-bottom: 12px;
-  display: block;
+.kpi:hover{transform:translateY(-3px);box-shadow:var(--sh)}
+.kpi-glow{
+  position:absolute;top:-30px;right:-30px;
+  width:90px;height:90px;border-radius:50%;
+  opacity:.12;filter:blur(20px);
 }
-
-.stat-value {
-  font-size: 32px;
-  font-weight: 800;
-  line-height: 1;
-  margin-bottom: 4px;
+.kpi.blue .kpi-glow{background:var(--blue)}
+.kpi.green .kpi-glow{background:var(--green)}
+.kpi.red .kpi-glow{background:var(--red)}
+.kpi.yellow .kpi-glow{background:var(--yellow)}
+.kpi.purple .kpi-glow{background:var(--purple)}
+.kpi-icon{font-size:22px;margin-bottom:8px}
+.kpi-val{
+  font-size:28px;font-weight:900;line-height:1;
+  margin-bottom:3px;
 }
+.kpi.blue   .kpi-val{color:var(--blue)}
+.kpi.green  .kpi-val{color:var(--green)}
+.kpi.red    .kpi-val{color:var(--red)}
+.kpi.yellow .kpi-val{color:var(--yellow)}
+.kpi.purple .kpi-val{color:var(--purple)}
+.kpi-label{font-size:11px;color:var(--text-2)}
+.kpi-trend{
+  font-size:10px;color:var(--text-3);
+  margin-top:5px;display:flex;align-items:center;gap:3px;
+}
+.kpi-trend.up{color:var(--green)}
+.kpi-trend.down{color:var(--red)}
 
-.stat-card.blue   .stat-value { color: var(--accent-blue); }
-.stat-card.green  .stat-value { color: var(--accent-green); }
-.stat-card.red    .stat-value { color: var(--accent-red); }
-.stat-card.yellow .stat-value { color: var(--accent-yellow); }
+/* ═══════════════════════════════════════════════════════
+   بخش‌ها (page sections)
+═══════════════════════════════════════════════════════ */
+.page{display:none}
+.page.active{display:block}
 
-.stat-label { font-size: 12px; color: var(--text-secondary); }
-.stat-sub   { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+/* ═══════════════════════════════════════════════════════
+   عنوان بخش
+═══════════════════════════════════════════════════════ */
+.section-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:16px;gap:12px;flex-wrap:wrap;
+}
+.section-title{
+  font-size:16px;font-weight:700;
+  display:flex;align-items:center;gap:8px;
+}
+.section-sub{font-size:12px;color:var(--text-2)}
 
-/* ═══════════════════════════════════════════
-   بخش‌های صفحه
-═══════════════════════════════════════════ */
-.page-section { display: none; }
-.page-section.active { display: block; }
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    نمودارها
-═══════════════════════════════════════════ */
-.charts-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 24px;
+═══════════════════════════════════════════════════════ */
+.charts-row{
+  display:grid;
+  grid-template-columns:1fr 1fr 1.6fr;
+  gap:14px;
+  margin-bottom:20px;
 }
-
-.chart-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+.chart-box{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;
 }
-
-.chart-card.full { grid-column: 1 / -1; }
-
-.chart-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.chart-box.full{grid-column:1/-1}
+.chart-box.half{grid-column:span 2}
+.chart-head{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:14px;
 }
+.chart-title{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.chart-sub{font-size:11px;color:var(--text-3)}
+.chart-wrap{position:relative;height:200px}
+.chart-wrap.tall{height:260px}
 
-.chart-wrap { position: relative; height: 220px; }
-
-/* ═══════════════════════════════════════════
-   فیلترها و جستجو
-═══════════════════════════════════════════ */
-.filters-bar {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.search-wrap {
-  position: relative;
-  flex: 1;
-  min-width: 200px;
-}
-
-.search-wrap input {
-  width: 100%;
-  padding: 9px 36px 9px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 13px;
-  outline: none;
-  transition: border .2s;
-}
-
-.search-wrap input:focus { border-color: var(--border-glow); }
-.search-wrap .search-icon {
-  position: absolute;
-  left: 10px; top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  font-size: 14px;
-}
-
-.filter-select {
-  padding: 9px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text-primary);
-  font-family: inherit;
-  font-size: 13px;
-  outline: none;
-  cursor: pointer;
-  min-width: 140px;
-}
-
-.filter-select:focus { border-color: var(--border-glow); }
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    کارت‌های خبر
-═══════════════════════════════════════════ */
-.news-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
+═══════════════════════════════════════════════════════ */
+.news-controls{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:14px;
+  margin-bottom:14px;
+  display:flex;gap:10px;flex-wrap:wrap;align-items:center;
+}
+.ctrl-search{
+  position:relative;flex:1;min-width:200px;
+}
+.ctrl-search input{
+  width:100%;padding:8px 34px 8px 12px;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text-1);
+  font-family:inherit;font-size:13px;outline:none;
+  transition:var(--trans);
+}
+.ctrl-search input:focus{border-color:var(--blue)}
+.ctrl-search-icon{
+  position:absolute;left:10px;top:50%;
+  transform:translateY(-50%);
+  color:var(--text-3);font-size:13px;
+}
+.ctrl-select{
+  padding:8px 12px;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text-1);
+  font-family:inherit;font-size:12px;outline:none;
+  cursor:pointer;min-width:130px;
+  transition:var(--trans);
+}
+.ctrl-select:focus{border-color:var(--blue)}
+.ctrl-btn{
+  padding:8px 16px;
+  border-radius:8px;
+  border:1px solid var(--border);
+  background:var(--bg-2);
+  color:var(--text-2);
+  font-size:12px;
+  transition:var(--trans);
+  display:flex;align-items:center;gap:5px;
+}
+.ctrl-btn:hover{background:var(--bg-3);color:var(--text-1);border-color:var(--border-2)}
+.ctrl-btn.active{background:rgba(79,142,247,.15);color:var(--blue);border-color:rgba(79,142,247,.4)}
+
+#news-counter{font-size:11px;color:var(--text-3)}
+
+.news-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+  gap:14px;
+  margin-bottom:20px;
 }
 
-.news-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
-  transition: transform .2s, box-shadow .2s, border-color .2s;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  position: relative;
-  overflow: hidden;
+.ncard{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:16px;
+  display:flex;flex-direction:column;gap:9px;
+  position:relative;overflow:hidden;
+  transition:var(--trans);
+  animation:fadeUp .4s ease both;
+}
+.ncard:hover{
+  transform:translateY(-3px);
+  border-color:var(--border-2);
+  box-shadow:var(--sh);
+}
+.ncard-stripe{
+  position:absolute;top:0;right:0;left:0;height:3px;
+}
+.ncard.crit .ncard-stripe{background:linear-gradient(90deg,var(--red),var(--yellow))}
+.ncard.warn .ncard-stripe{background:linear-gradient(90deg,var(--yellow),var(--cyan))}
+.ncard.pos  .ncard-stripe{background:linear-gradient(90deg,var(--green),var(--cyan))}
+.ncard.norm .ncard-stripe{background:linear-gradient(90deg,var(--blue),var(--purple))}
+
+.ncard-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-top:4px}
+.ncard-badges{display:flex;gap:5px;flex-wrap:wrap;flex:1}
+.nbadge{
+  font-size:10px;font-weight:600;padding:2px 8px;
+  border-radius:20px;white-space:nowrap;
+}
+.nbadge.cat{background:rgba(79,142,247,.12);color:var(--blue);border:1px solid rgba(79,142,247,.25)}
+.nbadge.crit{background:rgba(240,82,82,.12);color:var(--red);border:1px solid rgba(240,82,82,.25)}
+.nbadge.warn{background:rgba(245,166,35,.12);color:var(--yellow);border:1px solid rgba(245,166,35,.25)}
+.nbadge.pos{background:rgba(20,201,126,.12);color:var(--green);border:1px solid rgba(20,201,126,.25)}
+.nbadge.norm{background:rgba(79,142,247,.08);color:var(--text-2);border:1px solid var(--border)}
+.nbadge.ai-tag{background:rgba(155,109,255,.12);color:var(--purple);border:1px solid rgba(155,109,255,.25)}
+
+.ncard-score{
+  font-size:10px;color:var(--text-3);
+  display:flex;align-items:center;gap:3px;flex-shrink:0;
 }
 
-.news-card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-card);
-  border-color: var(--border-glow);
+.ncard-title{font-size:13px;font-weight:600;line-height:1.65;color:var(--text-1)}
+.ncard-summary{
+  font-size:12px;color:var(--text-2);line-height:1.75;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
 }
 
-.news-card.critical::before {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #ef4444, #f59e0b);
+/* بخش AI در کارت */
+.ncard-ai{
+  background:linear-gradient(135deg,rgba(155,109,255,.07),rgba(79,142,247,.07));
+  border:1px solid rgba(155,109,255,.2);
+  border-radius:9px;padding:11px;
+  display:flex;flex-direction:column;gap:6px;
+  font-size:12px;
+}
+.ncard-ai-head{
+  font-size:11px;font-weight:700;color:var(--purple);
+  display:flex;align-items:center;justify-content:space-between;
+}
+.ncard-ai-row{display:flex;gap:6px;align-items:flex-start;line-height:1.6}
+.ncard-ai-lbl{color:var(--text-3);min-width:60px;flex-shrink:0;font-size:11px}
+.ncard-ai-val{color:var(--text-2)}
+
+.ncard-foot{
+  display:flex;align-items:center;justify-content:space-between;
+  padding-top:9px;border-top:1px solid var(--border);
+  margin-top:auto;gap:8px;
+}
+.ncard-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.nmeta{display:flex;align-items:center;gap:3px;font-size:11px;color:var(--text-3)}
+.ncard-link{
+  font-size:11px;color:var(--blue);
+  padding:4px 10px;border-radius:6px;
+  border:1px solid rgba(79,142,247,.3);
+  transition:var(--trans);flex-shrink:0;
+}
+.ncard-link:hover{background:rgba(79,142,247,.1)}
+
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(16px)}
+  to{opacity:1;transform:translateY(0)}
 }
 
-.news-card.positive::before {
-  content: '';
-  position: absolute;
-  top: 0; right: 0; left: 0;
-  height: 3px;
-  background: linear-gradient(90deg, #10b981, #06b6d4);
-}
-
-.news-card-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.category-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
-  background: rgba(59,130,246,0.15);
-  color: var(--accent-blue);
-  border: 1px solid rgba(59,130,246,0.3);
-  flex-shrink: 0;
-}
-
-.sensitivity-badge {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 20px;
-  flex-shrink: 0;
-}
-
-.sensitivity-badge.critical { background: rgba(239,68,68,.15);  color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
-.sensitivity-badge.warning  { background: rgba(245,158,11,.15); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
-.sensitivity-badge.normal   { background: rgba(59,130,246,.15); color: #3b82f6; border: 1px solid rgba(59,130,246,.3); }
-.sensitivity-badge.positive { background: rgba(16,185,129,.15); color: #10b981; border: 1px solid rgba(16,185,129,.3); }
-
-.news-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  line-height: 1.6;
-}
-
-.news-summary {
-  font-size: 12px;
-  color: var(--text-secondary);
-  line-height: 1.7;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.news-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
-  margin-top: auto;
-}
-
-.news-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-
-.meta-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.news-link {
-  font-size: 11px;
-  color: var(--accent-blue);
-  text-decoration: none;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(59,130,246,.3);
-  transition: all .2s;
-}
-
-.news-link:hover {
-  background: rgba(59,130,246,.1);
-}
-
-/* بخش AI خبر */
-.news-ai {
-  background: rgba(139,92,246,.08);
-  border: 1px solid rgba(139,92,246,.2);
-  border-radius: 8px;
-  padding: 12px;
-  font-size: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.news-ai-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--accent-purple);
-  display: flex; align-items: center; gap: 4px;
-}
-
-.news-ai-row { display: flex; gap: 6px; align-items: flex-start; }
-.news-ai-label { color: var(--text-muted); min-width: 80px; flex-shrink: 0; }
-.news-ai-value { color: var(--text-secondary); }
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    صفحه‌بندی
-═══════════════════════════════════════════ */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 16px 0;
+═══════════════════════════════════════════════════════ */
+.pager{display:flex;align-items:center;justify-content:center;gap:6px;padding:14px 0}
+.pager-btn{
+  padding:6px 13px;border-radius:7px;
+  border:1px solid var(--border);background:var(--bg-card);
+  color:var(--text-2);font-family:inherit;font-size:12px;
+  transition:var(--trans);
 }
+.pager-btn:hover,.pager-btn.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.pager-btn:disabled{opacity:.35;cursor:not-allowed}
 
-.page-btn {
-  padding: 7px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-card);
-  color: var(--text-secondary);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 13px;
-  transition: all .2s;
+/* ═══════════════════════════════════════════════════════
+   مرکز فرماندهی بحران
+═══════════════════════════════════════════════════════ */
+.crisis-banner{
+  border-radius:var(--r-lg);
+  padding:22px 24px;
+  margin-bottom:20px;
+  position:relative;overflow:hidden;
+  display:flex;align-items:center;gap:20px;
+  flex-wrap:wrap;
 }
-
-.page-btn:hover, .page-btn.active {
-  background: var(--accent-blue);
-  border-color: var(--accent-blue);
-  color: white;
+.crisis-banner.red{
+  background:linear-gradient(135deg,rgba(240,82,82,.15),rgba(245,166,35,.1));
+  border:1px solid rgba(240,82,82,.4);
 }
-
-.page-btn:disabled {
-  opacity: .4;
-  cursor: not-allowed;
+.crisis-banner.yellow{
+  background:linear-gradient(135deg,rgba(245,166,35,.12),rgba(240,82,82,.08));
+  border:1px solid rgba(245,166,35,.4);
 }
-
-/* ═══════════════════════════════════════════
-   بخش تحلیل ۲۴ ساعته
-═══════════════════════════════════════════ */
-.analysis-header {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 28px;
-  margin-bottom: 20px;
-  position: relative;
-  overflow: hidden;
+.crisis-banner.blue{
+  background:linear-gradient(135deg,rgba(79,142,247,.12),rgba(155,109,255,.08));
+  border:1px solid rgba(79,142,247,.3);
 }
-
-.analysis-header::before {
-  content: '';
-  position: absolute;
-  top: -50px; left: -50px;
-  width: 200px; height: 200px;
-  border-radius: 50%;
-  background: var(--gradient-1);
-  opacity: .05;
+.crisis-banner.green{
+  background:linear-gradient(135deg,rgba(20,201,126,.12),rgba(79,142,247,.08));
+  border:1px solid rgba(20,201,126,.3);
 }
-
-.analysis-header-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 20px;
+.crisis-banner::after{
+  content:'';position:absolute;
+  top:-40px;left:-40px;
+  width:150px;height:150px;border-radius:50%;
+  opacity:.05;filter:blur(30px);
 }
+.crisis-banner.red::after{background:var(--red)}
+.crisis-banner.yellow::after{background:var(--yellow)}
+.crisis-banner.blue::after{background:var(--blue)}
+.crisis-banner.green::after{background:var(--green)}
 
-.analysis-title {
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 4px;
+.crisis-pulse{
+  width:52px;height:52px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;flex-shrink:0;
+  animation:crisis-pulse 2.5s infinite;
 }
+.crisis-banner.red    .crisis-pulse{background:rgba(240,82,82,.2);box-shadow:0 0 0 0 rgba(240,82,82,.4)}
+.crisis-banner.yellow .crisis-pulse{background:rgba(245,166,35,.2);box-shadow:0 0 0 0 rgba(245,166,35,.4)}
+.crisis-banner.blue   .crisis-pulse{background:rgba(79,142,247,.2);box-shadow:0 0 0 0 rgba(79,142,247,.4)}
+.crisis-banner.green  .crisis-pulse{background:rgba(20,201,126,.2);box-shadow:0 0 0 0 rgba(20,201,126,.4)}
 
-.analysis-subtitle { font-size: 13px; color: var(--text-secondary); }
-
-.analysis-time {
-  font-size: 12px;
-  color: var(--text-muted);
-  display: flex; align-items: center; gap: 6px;
-  flex-shrink: 0;
+@keyframes crisis-pulse{
+  0%{box-shadow:0 0 0 0 rgba(240,82,82,.5)}
+  70%{box-shadow:0 0 0 18px rgba(240,82,82,0)}
+  100%{box-shadow:0 0 0 0 rgba(240,82,82,0)}
 }
-
-.risk-indicator {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
-  border-radius: 10px;
-  font-weight: 700;
-  font-size: 15px;
-  margin-bottom: 16px;
+.crisis-info{flex:1;min-width:200px}
+.crisis-title{font-size:18px;font-weight:800;margin-bottom:4px}
+.crisis-sub{font-size:13px;color:var(--text-2)}
+.crisis-stats{display:flex;gap:16px;flex-wrap:wrap}
+.crisis-stat{
+  text-align:center;padding:10px 16px;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:10px;min-width:80px;
 }
+.crisis-stat-val{font-size:22px;font-weight:800;line-height:1}
+.crisis-stat-lbl{font-size:10px;color:var(--text-3);margin-top:2px}
+.crisis-actions{display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0}
 
-.risk-indicator.critical { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.3);  color: #ef4444; }
-.risk-indicator.warning  { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.3); color: #f59e0b; }
-.risk-indicator.normal   { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3); color: #3b82f6; }
-.risk-indicator.positive { background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.3); color: #10b981; }
-
-.risk-pulse {
-  width: 12px; height: 12px; border-radius: 50%;
-  animation: pulse 2s infinite;
-  flex-shrink: 0;
+/* ═══════════════════════════════════════════════════════
+   تحلیل AI روزانه
+═══════════════════════════════════════════════════════ */
+.ai-trigger{
+  display:flex;align-items:center;gap:12px;
+  margin-bottom:20px;flex-wrap:wrap;
 }
-
-.risk-indicator.critical .risk-pulse { background: #ef4444; box-shadow: 0 0 0 0 rgba(239,68,68,.5); }
-.risk-indicator.warning  .risk-pulse { background: #f59e0b; box-shadow: 0 0 0 0 rgba(245,158,11,.5); }
-.risk-indicator.normal   .risk-pulse { background: #3b82f6; box-shadow: 0 0 0 0 rgba(59,130,246,.5); }
-.risk-indicator.positive .risk-pulse { background: #10b981; box-shadow: 0 0 0 0 rgba(16,185,129,.5); }
-
-@keyframes pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(239,68,68,.5); }
-  70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
-  100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+.ai-trigger-btn{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 24px;
+  background:linear-gradient(135deg,#9b6dff,#4f8ef7);
+  border:none;border-radius:var(--r);
+  color:#fff;font-family:inherit;font-size:14px;font-weight:700;
+  box-shadow:0 4px 20px rgba(155,109,255,.4);
+  transition:var(--trans);
+  position:relative;overflow:hidden;
 }
-
-.executive-summary {
-  font-size: 14px;
-  color: var(--text-secondary);
-  line-height: 1.8;
-  padding: 14px;
-  background: var(--bg-secondary);
-  border-radius: 8px;
-  border-right: 3px solid var(--accent-blue);
+.ai-trigger-btn::after{
+  content:'';position:absolute;
+  top:50%;left:50%;
+  width:0;height:0;border-radius:50%;
+  background:rgba(255,255,255,.2);
+  transform:translate(-50%,-50%);
+  transition:width .5s,height .5s;
 }
+.ai-trigger-btn:hover::after{width:300px;height:300px}
+.ai-trigger-btn:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(155,109,255,.55)}
+.ai-trigger-btn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.ai-spin{
+  width:16px;height:16px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;
+  animation:spin 1s linear infinite;
+  display:none;
+}
+.ai-trigger-btn.loading .ai-spin{display:block}
+.ai-trigger-btn.loading .ai-btn-icon{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.ai-info{font-size:12px;color:var(--text-3)}
+.ai-info strong{color:var(--text-2)}
 
 /* گرید تحلیل */
-.analysis-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 20px;
+.ai-report-header{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r-lg);
+  padding:24px;
+  margin-bottom:16px;
+  position:relative;overflow:hidden;
+}
+.ai-report-header::before{
+  content:'';position:absolute;
+  top:-60px;left:-60px;
+  width:200px;height:200px;border-radius:50%;
+  background:var(--purple);opacity:.04;filter:blur(40px);
+}
+.air-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.air-title{font-size:18px;font-weight:800}
+.air-sub{font-size:12px;color:var(--text-2);margin-top:3px}
+.air-meta{font-size:11px;color:var(--text-3);text-align:left}
+
+.risk-meter{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 18px;
+  border-radius:10px;margin-bottom:16px;
+  font-weight:700;font-size:15px;
+}
+.risk-meter.red   {background:rgba(240,82,82,.1); border:1px solid rgba(240,82,82,.3); color:var(--red)}
+.risk-meter.yellow{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);color:var(--yellow)}
+.risk-meter.blue  {background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);color:var(--blue)}
+.risk-meter.green {background:rgba(20,201,126,.1);border:1px solid rgba(20,201,126,.3);color:var(--green)}
+
+.risk-anim{width:14px;height:14px;border-radius:50%;animation:spin-pulse 2s infinite;flex-shrink:0}
+.risk-meter.red    .risk-anim{background:var(--red);box-shadow:0 0 10px var(--red-glow)}
+.risk-meter.yellow .risk-anim{background:var(--yellow);box-shadow:0 0 10px var(--yellow-glow)}
+.risk-meter.blue   .risk-anim{background:var(--blue);box-shadow:0 0 10px var(--blue-glow)}
+.risk-meter.green  .risk-anim{background:var(--green);box-shadow:0 0 10px var(--green-glow)}
+@keyframes spin-pulse{
+  0%,100%{transform:scale(1)}
+  50%{transform:scale(1.3)}
 }
 
-.analysis-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 20px;
+.exec-summary{
+  font-size:13px;color:var(--text-2);line-height:1.9;
+  padding:14px 16px;
+  background:var(--bg-2);
+  border-radius:9px;
+  border-right:3px solid var(--blue);
 }
 
-.analysis-card-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 14px;
-  display: flex; align-items: center; gap: 8px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+.issues-wrap{margin-bottom:16px}
+.issues-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:7px}
+.issue-tag{
+  display:inline-block;
+  padding:4px 12px;margin:3px;
+  border-radius:20px;font-size:12px;font-weight:500;
+  background:rgba(240,82,82,.1);
+  border:1px solid rgba(240,82,82,.2);
+  color:var(--red);
 }
 
-.analysis-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-
-.analysis-list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.6;
+.ai-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+  margin-bottom:16px;
 }
-
-.analysis-list li::before {
-  content: '◈';
-  color: var(--accent-blue);
-  flex-shrink: 0;
-  margin-top: 2px;
+.ai-card{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;
+  transition:var(--trans);
 }
-
-.analysis-list.urgent li::before { content: '⚡'; color: var(--accent-red); }
-.analysis-list.positive li::before { content: '✦'; color: var(--accent-green); }
+.ai-card:hover{border-color:var(--border-2)}
+.ai-card.full{grid-column:1/-1}
+.ai-card-title{
+  font-size:13px;font-weight:700;
+  margin-bottom:13px;
+  padding-bottom:10px;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:7px;
+}
+.ai-list{list-style:none;display:flex;flex-direction:column;gap:7px}
+.ai-list li{
+  display:flex;align-items:flex-start;gap:7px;
+  font-size:12px;color:var(--text-2);line-height:1.7;
+}
+.ai-list li::before{content:'◈';color:var(--blue);flex-shrink:0;margin-top:1px}
+.ai-list.red li::before{content:'⚡';color:var(--red)}
+.ai-list.green li::before{content:'✦';color:var(--green)}
 
 /* کارت‌های خبر تحلیل‌شده */
-.analyzed-news-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
+.analyzed-list{display:flex;flex-direction:column;gap:10px;margin-bottom:16px}
+.acard{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:16px;
+  display:grid;
+  grid-template-columns:36px 1fr auto;
+  gap:12px;
+  align-items:start;
+  transition:var(--trans);
+  position:relative;
+}
+.acard:hover{border-color:var(--border-2);transform:translateX(-4px)}
+.acard-em{font-size:22px;line-height:1;padding-top:2px}
+.acard-body{}
+.acard-title{font-size:13px;font-weight:600;color:var(--text-1);margin-bottom:6px;line-height:1.5}
+.acard-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px}
+.atag{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
+.atag.cat{background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.2)}
+.atag.neg{background:rgba(240,82,82,.1);color:var(--red);border:1px solid rgba(240,82,82,.2)}
+.atag.pos{background:rgba(20,201,126,.1);color:var(--green);border:1px solid rgba(20,201,126,.2)}
+.atag.neu{background:rgba(79,142,247,.06);color:var(--text-3);border:1px solid var(--border)}
+.acard-action{
+  font-size:12px;color:var(--text-2);line-height:1.6;
+  display:flex;gap:5px;
+}
+.acard-action-lbl{color:var(--yellow);font-weight:700;flex-shrink:0}
+.acard-link{
+  font-size:11px;color:var(--blue);
+  padding:5px 11px;border-radius:7px;
+  border:1px solid rgba(79,142,247,.3);
+  flex-shrink:0;align-self:center;
+  transition:var(--trans);
+}
+.acard-link:hover{background:rgba(79,142,247,.1)}
+
+/* ═══════════════════════════════════════════════════════
+   مدیریت پاسخ / پیش‌نویس
+═══════════════════════════════════════════════════════ */
+.draft-box{
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:var(--r);
+  padding:18px;
+  margin-bottom:14px;
+}
+.draft-title{font-size:13px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.draft-textarea{
+  width:100%;
+  min-height:100px;
+  background:var(--bg-2);
+  border:1px solid var(--border);
+  border-radius:8px;
+  color:var(--text-1);
+  font-family:'Vazirmatn',inherit;
+  font-size:13px;line-height:1.8;
+  padding:12px;
+  resize:vertical;outline:none;
+  transition:var(--trans);
+  direction:rtl;
+}
+.draft-textarea:focus{border-color:var(--blue)}
+.draft-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.draft-btn{
+  padding:7px 16px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg-2);
+  color:var(--text-2);font-family:inherit;font-size:12px;
+  transition:var(--trans);
+  display:flex;align-items:center;gap:5px;
+}
+.draft-btn:hover{background:var(--bg-3);color:var(--text-1)}
+.draft-btn.primary{
+  background:linear-gradient(135deg,var(--blue),var(--purple));
+  border:none;color:#fff;font-weight:600;
+  box-shadow:0 2px 12px var(--blue-glow);
+}
+.draft-btn.primary:hover{transform:translateY(-1px);box-shadow:0 4px 20px var(--blue-glow)}
+
+/* ═══════════════════════════════════════════════════════
+   جدول مقایسه‌ای
+═══════════════════════════════════════════════════════ */
+.comparison-table{
+  width:100%;border-collapse:collapse;
+  font-size:12px;
+}
+.comparison-table th{
+  background:var(--bg-2);
+  color:var(--text-2);font-weight:600;
+  padding:9px 12px;text-align:right;
+  border-bottom:1px solid var(--border);
+  font-size:11px;
+}
+.comparison-table td{
+  padding:9px 12px;border-bottom:1px solid var(--border);
+  color:var(--text-2);vertical-align:middle;
+}
+.comparison-table tr:hover td{background:var(--bg-hover)}
+.bar-mini{
+  height:5px;border-radius:3px;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  transition:width 1s ease;
 }
 
-.analyzed-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: center;
-  transition: all .2s;
-}
-
-.analyzed-card:hover {
-  border-color: var(--border-glow);
-  transform: translateX(-3px);
-}
-
-.analyzed-sensitivity {
-  font-size: 24px;
-  line-height: 1;
-}
-
-.analyzed-content { overflow: hidden; }
-
-.analyzed-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 4px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.analyzed-meta { display: flex; gap: 10px; flex-wrap: wrap; }
-
-.analyzed-tag {
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 20px;
-  font-weight: 500;
-}
-
-.analyzed-tag.cat  { background: rgba(59,130,246,.1); color: var(--accent-blue); }
-.analyzed-tag.sent.neg  { background: rgba(239,68,68,.1); color: #ef4444; }
-.analyzed-tag.sent.pos  { background: rgba(16,185,129,.1); color: #10b981; }
-.analyzed-tag.sent.neu  { background: rgba(100,116,139,.1); color: var(--text-muted); }
-
-.analyzed-action {
-  font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 6px;
-  padding-top: 6px;
-  border-top: 1px solid var(--border);
-  display: flex; gap: 6px;
-}
-
-.analyzed-action-label { color: var(--accent-yellow); font-weight: 600; flex-shrink: 0; }
-
-.analyzed-link {
-  font-size: 11px;
-  color: var(--accent-blue);
-  text-decoration: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(59,130,246,.3);
-  flex-shrink: 0;
-  align-self: flex-start;
-  transition: all .2s;
-}
-
-.analyzed-link:hover { background: rgba(59,130,246,.1); }
-
-/* ═══════════════════════════════════════════
-   دکمه تحلیل
-═══════════════════════════════════════════ */
-.trigger-analysis-btn {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 28px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border: none;
-  border-radius: 12px;
-  color: white;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all .3s;
-  box-shadow: 0 4px 20px rgba(102,126,234,0.4);
-  margin-bottom: 24px;
-  position: relative;
-  overflow: hidden;
-}
-
-.trigger-analysis-btn::after {
-  content: '';
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 0; height: 0;
-  background: rgba(255,255,255,.2);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  transition: width .4s, height .4s;
-}
-
-.trigger-analysis-btn:hover::after { width: 300px; height: 300px; }
-
-.trigger-analysis-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(102,126,234,0.6);
-}
-
-.trigger-analysis-btn:disabled {
-  opacity: .6;
-  cursor: not-allowed;
-  transform: none;
-}
-
-.trigger-analysis-btn .spinner {
-  width: 18px; height: 18px;
-  border: 2px solid rgba(255,255,255,.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  display: none;
-}
-
-.trigger-analysis-btn.loading .spinner { display: block; }
-.trigger-analysis-btn.loading .btn-icon { display: none; }
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ═══════════════════════════════════════════
-   وضعیت بارگذاری
-═══════════════════════════════════════════ */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 16px;
-  padding: 60px 20px;
-  color: var(--text-muted);
-}
-
-.loading-state .big-spinner {
-  width: 48px; height: 48px;
-  border: 3px solid var(--border);
-  border-top-color: var(--accent-blue);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 60px 20px;
-  color: var(--text-muted);
-  text-align: center;
-}
-
-.empty-state .empty-icon { font-size: 48px; opacity: .5; }
-.empty-state p { font-size: 14px; }
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    اعلان
-═══════════════════════════════════════════ */
-.toast {
-  position: fixed;
-  bottom: 24px;
-  left: 24px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 14px 20px;
-  font-size: 13px;
-  color: var(--text-primary);
-  box-shadow: var(--shadow-card);
-  display: flex; align-items: center; gap: 10px;
-  transform: translateY(100px);
-  opacity: 0;
-  transition: all .3s;
-  z-index: 999;
-  max-width: 320px;
+═══════════════════════════════════════════════════════ */
+.toast-wrap{
+  position:fixed;bottom:20px;left:20px;
+  z-index:9999;
+  display:flex;flex-direction:column;gap:8px;
+}
+.toast{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 18px;
+  background:var(--bg-card);
+  border:1px solid var(--border);
+  border-radius:10px;
+  font-size:12px;color:var(--text-1);
+  box-shadow:var(--sh);
+  transform:translateX(-120%);
+  opacity:0;
+  transition:all .35s cubic-bezier(.68,-.6,.32,1.6);
+  max-width:300px;
+}
+.toast.show{transform:translateX(0);opacity:1}
+.toast.ok  {border-right:3px solid var(--green)}
+.toast.err {border-right:3px solid var(--red)}
+.toast.info{border-right:3px solid var(--blue)}
+.toast.warn{border-right:3px solid var(--yellow)}
+
+/* ═══════════════════════════════════════════════════════
+   حالت‌های خالی و بارگذاری
+═══════════════════════════════════════════════════════ */
+.state-box{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;
+  padding:60px 20px;text-align:center;
+}
+.state-icon{font-size:46px;opacity:.4}
+.state-title{font-size:14px;color:var(--text-2)}
+.state-sub{font-size:12px;color:var(--text-3)}
+.spinner-lg{
+  width:46px;height:46px;border-radius:50%;
+  border:3px solid var(--border);
+  border-top-color:var(--blue);
+  animation:spin 1s linear infinite;
 }
 
-.toast.show { transform: translateY(0); opacity: 1; }
-.toast.success { border-right: 3px solid var(--accent-green); }
-.toast.error   { border-right: 3px solid var(--accent-red); }
-.toast.info    { border-right: 3px solid var(--accent-blue); }
-
-/* ═══════════════════════════════════════════
-   فوتر
-═══════════════════════════════════════════ */
-.footer {
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
-  padding: 20px 24px;
-  text-align: center;
-  font-size: 12px;
-  color: var(--text-muted);
-  grid-column: 1 / -1;
-}
-
-/* ═══════════════════════════════════════════
+/* ═══════════════════════════════════════════════════════
    واکنش‌گرا
-═══════════════════════════════════════════ */
-@media (max-width: 1024px) {
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .charts-grid { grid-template-columns: 1fr; }
-  .analysis-grid { grid-template-columns: 1fr; }
+═══════════════════════════════════════════════════════ */
+@media(max-width:1280px){
+  .kpi-row{grid-template-columns:repeat(3,1fr)}
+  .charts-row{grid-template-columns:1fr 1fr}
+  .charts-row .chart-box:last-child{grid-column:1/-1}
 }
-
-@media (max-width: 768px) {
-  .layout { grid-template-columns: 1fr; }
-  .sidebar { display: none; position: fixed; z-index: 200; left: 0; top: 64px; height: calc(100vh - 64px); width: 240px; transform: translateX(-100%); transition: transform .3s; }
-  .sidebar.open { display: block; transform: translateX(0); }
-  .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .news-grid { grid-template-columns: 1fr; }
-  .analyzed-card { grid-template-columns: auto 1fr; }
-  .analyzed-link { display: none; }
-  .header-brand span { display: none; }
-  .analysis-header-top { flex-direction: column; }
+@media(max-width:1024px){
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .ai-grid{grid-template-columns:1fr}
 }
-
-/* ═══════════════════════════════════════════
-   انیمیشن‌ها
-═══════════════════════════════════════════ */
-@keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to   { opacity: 1; transform: translateY(0); }
+@media(max-width:768px){
+  .sidebar{display:none;position:fixed;z-index:500;top:60px;right:0;height:calc(100vh - 60px);transform:translateX(100%);transition:transform .3s}
+  .sidebar.mobile-open{display:flex;transform:translateX(0)}
+  .charts-row{grid-template-columns:1fr}
+  .news-grid{grid-template-columns:1fr}
+  .kpi-row{grid-template-columns:repeat(2,1fr)}
+  .acard{grid-template-columns:36px 1fr}
+  .acard-link{display:none}
+  .crisis-stats{display:none}
 }
-
-.news-card, .stat-card, .analyzed-card {
-  animation: fadeInUp .4s ease both;
-}
-
-.news-card:nth-child(1)  { animation-delay: .05s; }
-.news-card:nth-child(2)  { animation-delay: .10s; }
-.news-card:nth-child(3)  { animation-delay: .15s; }
-.news-card:nth-child(4)  { animation-delay: .20s; }
-.news-card:nth-child(5)  { animation-delay: .25s; }
-.news-card:nth-child(6)  { animation-delay: .30s; }
-
-/* نوار پیشرفت */
-.progress-bar-wrap { background: var(--bg-secondary); border-radius: 4px; height: 6px; overflow: hidden; margin-top: 8px; }
-.progress-bar { height: 100%; border-radius: 4px; transition: width 1s ease; }
 </style>
 </head>
-
 <body>
 
-<!-- ═══ هدر ═══ -->
-<header class="header">
-  <a class="header-brand" href="#">
-    <div class="logo">🌿</div>
-    <div>
-      سامانه پایش محیط‌زیست ایران
-      <span id="refresh-time">در حال بارگذاری...</span>
+<!-- ═══ نوار بالا ═══ -->
+<header class="topbar">
+  <div class="topbar-brand" onclick="showPage('dashboard')">
+    <div class="brand-logo">🌿</div>
+    <div class="brand-text">
+      <div class="brand-title">مرکز فرماندهی روابط‌عمومی</div>
+      <div class="brand-sub">سازمان حفاظت محیط‌زیست ایران</div>
     </div>
-  </a>
+  </div>
 
-  <nav class="header-nav">
-    <button class="nav-btn active" onclick="showSection('dashboard')">📊 داشبورد</button>
-    <button class="nav-btn" onclick="showSection('news')">📰 اخبار</button>
-    <button class="nav-btn" onclick="showSection('analysis')">🤖 تحلیل AI</button>
-    <button class="theme-btn" onclick="toggleTheme()" title="تغییر تم">🌙</button>
-    <button class="nav-btn" onclick="refreshData()" title="بارگذاری مجدد">🔄</button>
-  </nav>
+  <div class="live-bar">
+    <div class="live-dot"></div>
+    <span>سیستم فعال</span>
+  </div>
+
+  <div class="alert-level blue" id="topbar-alert" onclick="showPage('crisis')">
+    <span id="topbar-alert-icon">🔵</span>
+    <span id="topbar-alert-txt">وضعیت عادی</span>
+  </div>
+
+  <div class="topbar-right">
+    <span id="clock"></span>
+
+    <button class="icon-btn" onclick="refreshAll()" title="بارگذاری مجدد">🔄</button>
+    <button class="icon-btn" onclick="toggleTheme()" id="theme-btn" title="تغییر تم">🌙</button>
+    <button class="icon-btn" style="display:none" onclick="toggleSidebar()" id="menu-btn">☰</button>
+  </div>
 </header>
 
-<!-- ═══ لایه‌بندی ═══ -->
-<div class="layout">
+<!-- ═══ پوسته ═══ -->
+<div class="shell">
 
-  <!-- ═══ سایدبار ═══ -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-title">ناوبری</div>
-      <button class="sidebar-link active" onclick="showSection('dashboard')">
-        <span class="icon">📊</span> داشبورد اصلی
-      </button>
-      <button class="sidebar-link" onclick="showSection('news')">
-        <span class="icon">📰</span> فهرست اخبار
-      </button>
-      <button class="sidebar-link" onclick="showSection('analysis')">
-        <span class="icon">🤖</span> تحلیل ۲۴ ساعته
-      </button>
+<!-- ═══ سایدبار ═══ -->
+<aside class="sidebar" id="sidebar">
+
+  <div class="sb-section">
+    <div class="sb-label">ناوبری اصلی</div>
+    <button class="sb-item active" onclick="showPage('dashboard')">
+      <span class="sb-icon">📊</span>
+      <span class="sb-text">داشبورد اصلی</span>
+    </button>
+    <button class="sb-item" onclick="showPage('news')">
+      <span class="sb-icon">📰</span>
+      <span class="sb-text">مانیتورینگ اخبار</span>
+      <span class="sb-count" id="sb-news-count">—</span>
+    </button>
+    <button class="sb-item" onclick="showPage('crisis')">
+      <span class="sb-icon">🚨</span>
+      <span class="sb-text">مرکز بحران</span>
+      <span class="sb-count" id="sb-crit-count">—</span>
+    </button>
+    <button class="sb-item" onclick="showPage('analysis')">
+      <span class="sb-icon">🤖</span>
+      <span class="sb-text">تحلیل AI روزانه</span>
+    </button>
+    <button class="sb-item" onclick="showPage('response')">
+      <span class="sb-icon">✍️</span>
+      <span class="sb-text">مدیریت پاسخ</span>
+    </button>
+    <button class="sb-item" onclick="showPage('stats')">
+      <span class="sb-icon">📈</span>
+      <span class="sb-text">آمار پیشرفته</span>
+    </button>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-label">فیلتر سریع</div>
+    <button class="sb-item" onclick="quickFilter('all')">
+      <span class="sb-icon">🌐</span>
+      <span class="sb-text">همه اخبار</span>
+    </button>
+    <button class="sb-item" onclick="quickFilter('crit')">
+      <span class="sb-icon">🔴</span>
+      <span class="sb-text">فقط بحرانی</span>
+    </button>
+    <button class="sb-item" onclick="quickFilter('ai')">
+      <span class="sb-icon">🤖</span>
+      <span class="sb-text">تحلیل‌شده AI</span>
+    </button>
+    <button class="sb-item" onclick="quickFilter('today')">
+      <span class="sb-icon">📅</span>
+      <span class="sb-text">امروز</span>
+    </button>
+  </div>
+
+  <div class="sb-section">
+    <div class="sb-label">دسته‌بندی</div>
+    <button class="sb-item" onclick="filterCat('آلودگی')"><span class="sb-icon">🌬️</span><span class="sb-text">آلودگی</span></button>
+    <button class="sb-item" onclick="filterCat('حیات وحش')"><span class="sb-icon">🐆</span><span class="sb-text">حیات وحش</span></button>
+    <button class="sb-item" onclick="filterCat('تالاب')"><span class="sb-icon">🌊</span><span class="sb-text">آب و تالاب</span></button>
+    <button class="sb-item" onclick="filterCat('اقلیم')"><span class="sb-icon">🌡️</span><span class="sb-text">تغییر اقلیم</span></button>
+    <button class="sb-item" onclick="filterCat('جنگل')"><span class="sb-icon">🌲</span><span class="sb-text">جنگل</span></button>
+  </div>
+
+  <div class="sb-sources" id="sb-sources"></div>
+</aside>
+
+<!-- ═══ محتوا ═══ -->
+<main class="main" id="main-content">
+
+<!-- ════════════════════ داشبورد ════════════════════ -->
+<div id="page-dashboard" class="page active">
+
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi blue"><div class="kpi-glow"></div><div class="kpi-icon">📰</div><div class="kpi-val" id="kpi-total">—</div><div class="kpi-label">کل اخبار</div><div class="kpi-trend" id="kpi-today-trend">—</div></div>
+    <div class="kpi red"><div class="kpi-glow"></div><div class="kpi-icon">🔴</div><div class="kpi-val" id="kpi-crit">—</div><div class="kpi-label">اخبار بحرانی</div><div class="kpi-trend" id="kpi-crit-pct">—</div></div>
+    <div class="kpi green"><div class="kpi-glow"></div><div class="kpi-icon">🗞️</div><div class="kpi-val" id="kpi-src">—</div><div class="kpi-label">منابع فعال</div><div class="kpi-trend">از ۱۴ فید تعریف‌شده</div></div>
+    <div class="kpi yellow"><div class="kpi-glow"></div><div class="kpi-icon">🤖</div><div class="kpi-val" id="kpi-ai">—</div><div class="kpi-label">تحلیل AI</div><div class="kpi-trend">خبر تحلیل‌شده</div></div>
+    <div class="kpi purple"><div class="kpi-glow"></div><div class="kpi-icon">📂</div><div class="kpi-val" id="kpi-cat">—</div><div class="kpi-label">دسته فعال</div><div class="kpi-trend">از ۷ دسته محیط‌زیستی</div></div>
+  </div>
+
+  <div class="charts-row">
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">📂 توزیع دسته‌بندی</div></div>
+      <div class="chart-wrap"><canvas id="ch-cat"></canvas></div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-title">فیلتر دسته‌بندی</div>
-      <button class="sidebar-link" onclick="filterByCategory('all')">
-        <span class="icon">🌐</span> همه دسته‌ها
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('آلودگی')">
-        <span class="icon">🌬️</span> آلودگی
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('حیات وحش')">
-        <span class="icon">🐆</span> حیات وحش
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('تالاب')">
-        <span class="icon">🌊</span> آب و تالاب
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('اقلیم')">
-        <span class="icon">🌡️</span> تغییر اقلیم
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('جنگل')">
-        <span class="icon">🌲</span> جنگل و مراتع
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('سازمان')">
-        <span class="icon">🏛️</span> سیاست و قوانین
-      </button>
-      <button class="sidebar-link" onclick="filterByCategory('توسعه')">
-        <span class="icon">♻️</span> توسعه پایدار
-      </button>
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">🗞️ توزیع منابع</div></div>
+      <div class="chart-wrap"><canvas id="ch-src"></canvas></div>
     </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-title">وضعیت سیستم</div>
-      <div style="padding:0 8px;font-size:12px;color:var(--text-muted);">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-          <span>منابع فعال</span>
-          <span id="sb-sources" style="color:var(--accent-green);">—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-          <span>کل اخبار</span>
-          <span id="sb-total" style="color:var(--accent-blue);">—</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;">
-          <span>بحرانی</span>
-          <span id="sb-critical" style="color:var(--accent-red);">—</span>
-        </div>
-      </div>
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">📈 روند ۷ روزه</div><div class="chart-sub">کل اخبار / بحرانی</div></div>
+      <div class="chart-wrap"><canvas id="ch-trend"></canvas></div>
     </div>
-  </aside>
+  </div>
 
-  <!-- ═══ محتوای اصلی ═══ -->
-  <main class="main">
+  <div class="charts-row" style="grid-template-columns:1fr 1fr">
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">🎭 توزیع احساسات</div></div>
+      <div class="chart-wrap"><canvas id="ch-sent"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">⏰ توزیع ساعتی</div></div>
+      <div class="chart-wrap"><canvas id="ch-hour"></canvas></div>
+    </div>
+  </div>
 
-    <!-- ─── بخش داشبورد ─── -->
-    <section id="section-dashboard" class="page-section active">
+  <div class="section-head">
+    <div class="section-title">🕐 آخرین اخبار</div>
+    <button class="ctrl-btn" onclick="showPage('news')">مشاهده همه ←</button>
+  </div>
+  <div class="news-grid" id="recent-grid">
+    <div style="grid-column:1/-1"><div class="state-box"><div class="spinner-lg"></div></div></div>
+  </div>
 
-      <!-- کارت‌های آمار -->
-      <div class="stats-grid" id="stats-grid">
-        <div class="stat-card blue">
-          <span class="stat-icon">📰</span>
-          <div class="stat-value" id="stat-total">—</div>
-          <div class="stat-label">کل اخبار ذخیره‌شده</div>
-          <div class="stat-sub" id="stat-today">امروز: —</div>
-        </div>
-        <div class="stat-card red">
-          <span class="stat-icon">🔴</span>
-          <div class="stat-value" id="stat-critical">—</div>
-          <div class="stat-label">اخبار بحرانی</div>
-          <div class="stat-sub" id="stat-critical-pct">— درصد از کل</div>
-        </div>
-        <div class="stat-card green">
-          <span class="stat-icon">🗞️</span>
-          <div class="stat-value" id="stat-sources">—</div>
-          <div class="stat-label">منابع خبری فعال</div>
-          <div class="stat-sub">از ۱۱ فید تعریف‌شده</div>
-        </div>
-        <div class="stat-card yellow">
-          <span class="stat-icon">📂</span>
-          <div class="stat-value" id="stat-cats">—</div>
-          <div class="stat-label">دسته‌بندی فعال</div>
-          <div class="stat-sub">از ۷ دسته محیط‌زیستی</div>
-        </div>
-      </div>
-
-      <!-- نمودارها -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <div class="chart-title">📂 توزیع دسته‌بندی</div>
-          <div class="chart-wrap"><canvas id="chart-category"></canvas></div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-title">🗞️ توزیع منابع</div>
-          <div class="chart-wrap"><canvas id="chart-source"></canvas></div>
-        </div>
-        <div class="chart-card full">
-          <div class="chart-title">📈 روند ۷ روز گذشته</div>
-          <div class="chart-wrap"><canvas id="chart-trend"></canvas></div>
-        </div>
-      </div>
-
-      <!-- ۵ خبر اخیر -->
-      <div style="font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px;">
-        🕐 آخرین اخبار
-        <span style="font-size:12px;font-weight:400;color:var(--text-muted);">۵ خبر اخیر</span>
-      </div>
-      <div class="news-grid" id="recent-news-grid">
-        <div class="loading-state"><div class="big-spinner"></div><p>در حال بارگذاری...</p></div>
-      </div>
-
-    </section>
-
-    <!-- ─── بخش فهرست اخبار ─── -->
-    <section id="section-news" class="page-section">
-
-      <div class="filters-bar">
-        <div class="search-wrap">
-          <input type="text" id="search-input" placeholder="جستجو در عنوان و خلاصه..." oninput="applyFilters()">
-          <span class="search-icon">🔍</span>
-        </div>
-        <select class="filter-select" id="filter-cat" onchange="applyFilters()">
-          <option value="all">همه دسته‌ها</option>
-        </select>
-        <select class="filter-select" id="filter-src" onchange="applyFilters()">
-          <option value="all">همه منابع</option>
-        </select>
-        <select class="filter-select" id="filter-crit" onchange="applyFilters()">
-          <option value="all">همه اخبار</option>
-          <option value="critical">فقط بحرانی</option>
-          <option value="ai">تحلیل AI‌شده</option>
-        </select>
-      </div>
-
-      <div id="news-count" style="font-size:12px;color:var(--text-muted);margin-bottom:12px;"></div>
-      <div class="news-grid" id="news-grid"></div>
-      <div class="pagination" id="pagination"></div>
-
-    </section>
-
-    <!-- ─── بخش تحلیل ۲۴ ساعته ─── -->
-    <section id="section-analysis" class="page-section">
-
-      <button class="trigger-analysis-btn" id="analyze-btn" onclick="loadAnalysis()">
-        <span class="btn-icon">🤖</span>
-        <div class="spinner"></div>
-        <span id="analyze-btn-text">بارگذاری تحلیل ۲۴ ساعته</span>
-      </button>
-
-      <div id="analysis-content">
-        <div class="empty-state">
-          <div class="empty-icon">🤖</div>
-          <p>برای مشاهده تحلیل هوش مصنوعی دکمه بالا را بزنید</p>
-          <p style="font-size:11px;margin-top:4px;">تحلیل روزانه هر روز ساعت ۹:۳۰ صبح به‌روز می‌شود</p>
-        </div>
-      </div>
-
-    </section>
-
-  </main>
 </div>
 
-<!-- فوتر -->
-<footer class="footer">
-  🌿 سامانه پایش اخبار محیط‌زیست ایران — نسخه ۲.۰ | ۱۴۰۵
-</footer>
+<!-- ════════════════════ مانیتورینگ اخبار ════════════════════ -->
+<div id="page-news" class="page">
 
-<!-- اعلان -->
-<div class="toast" id="toast"></div>
+  <div class="news-controls">
+    <div class="ctrl-search">
+      <input type="text" id="search" placeholder="جستجو در عنوان و خلاصه اخبار..." oninput="applyFilters()">
+      <span class="ctrl-search-icon">🔍</span>
+    </div>
+    <select class="ctrl-select" id="f-cat" onchange="applyFilters()">
+      <option value="all">همه دسته‌ها</option>
+    </select>
+    <select class="ctrl-select" id="f-src" onchange="applyFilters()">
+      <option value="all">همه منابع</option>
+    </select>
+    <select class="ctrl-select" id="f-sort" onchange="applyFilters()">
+      <option value="date">جدیدترین</option>
+      <option value="score">بیشترین امتیاز</option>
+      <option value="crit">بحرانی اول</option>
+    </select>
+    <button class="ctrl-btn" id="btn-only-crit" onclick="toggleCritFilter()">🔴 فقط بحرانی</button>
+    <button class="ctrl-btn" id="btn-only-ai" onclick="toggleAIFilter()">🤖 فقط AI</button>
+  </div>
+
+  <div id="news-counter"></div>
+  <div class="news-grid" id="news-grid"></div>
+  <div class="pager" id="pager"></div>
+
+</div>
+
+<!-- ════════════════════ مرکز بحران ════════════════════ -->
+<div id="page-crisis" class="page">
+
+  <div id="crisis-banner-wrap">
+    <div class="state-box"><div class="spinner-lg"></div></div>
+  </div>
+
+  <div class="section-head" style="margin-top:4px">
+    <div class="section-title">🔴 اخبار بحرانی اخیر</div>
+    <span class="section-sub" id="crisis-sub"></span>
+  </div>
+  <div class="news-grid" id="crisis-grid"></div>
+
+</div>
+
+<!-- ════════════════════ تحلیل AI روزانه ════════════════════ -->
+<div id="page-analysis" class="page">
+
+  <div class="ai-trigger">
+    <button class="ai-trigger-btn" id="ai-btn" onclick="loadAnalysis()">
+      <span class="ai-btn-icon">🤖</span>
+      <div class="ai-spin"></div>
+      <span id="ai-btn-txt">بارگذاری تحلیل ۲۴ ساعته</span>
+    </button>
+    <div class="ai-info">
+      تحلیل هوش مصنوعی اخبار ۲۴ ساعت گذشته<br>
+      <strong>هر روز ساعت ۹:۳۰ صبح به‌روز می‌شود</strong>
+    </div>
+  </div>
+
+  <div id="analysis-wrap">
+    <div class="state-box">
+      <div class="state-icon">🤖</div>
+      <div class="state-title">برای مشاهده تحلیل، دکمه بالا را بزنید</div>
+      <div class="state-sub">گزارش جامع مشاوره روابط‌عمومی</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════ مدیریت پاسخ ════════════════════ -->
+<div id="page-response" class="page">
+
+  <div class="section-head">
+    <div class="section-title">✍️ مرکز تهیه پیش‌نویس پاسخ رسمی</div>
+  </div>
+
+  <div class="draft-box">
+    <div class="draft-title">📋 انتخاب خبر برای پیش‌نویس</div>
+    <select class="ctrl-select" id="draft-news-sel" style="width:100%;margin-bottom:12px" onchange="loadDraftFromNews()">
+      <option value="">— خبر را انتخاب کنید —</option>
+    </select>
+    <div id="draft-selected-info" style="font-size:12px;color:var(--text-3);margin-bottom:12px;min-height:20px"></div>
+    <div class="draft-title" style="margin-top:4px">✏️ پیش‌نویس پاسخ رسمی</div>
+    <textarea class="draft-textarea" id="draft-area" placeholder="پیش‌نویس پاسخ رسمی سازمان را اینجا بنویسید یا از تحلیل AI بارگذاری کنید..."></textarea>
+    <div class="draft-actions">
+      <button class="draft-btn primary" onclick="copyDraft()">📋 کپی پیش‌نویس</button>
+      <button class="draft-btn" onclick="clearDraft()">🗑️ پاک کردن</button>
+      <button class="draft-btn" onclick="saveDraftLocal()">💾 ذخیره موقت</button>
+    </div>
+  </div>
+
+  <div class="ai-card">
+    <div class="ai-card-title">📌 پیش‌نویس‌های ذخیره‌شده موقت</div>
+    <div id="saved-drafts-list">
+      <div style="font-size:12px;color:var(--text-3)">هنوز پیش‌نویسی ذخیره نشده است</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════ آمار پیشرفته ════════════════════ -->
+<div id="page-stats" class="page">
+
+  <div class="section-head">
+    <div class="section-title">📊 آمار و تحلیل پیشرفته</div>
+  </div>
+
+  <div class="charts-row" style="grid-template-columns:1fr 1fr">
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">📅 آمار روزانه ۳۰ روزه</div></div>
+      <div class="chart-wrap tall"><canvas id="ch-30day"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-head"><div class="chart-title">🏆 منابع پربارترین</div></div>
+      <div class="chart-wrap tall"><canvas id="ch-top-src"></canvas></div>
+    </div>
+  </div>
+
+  <div class="ai-card" style="margin-bottom:16px">
+    <div class="ai-card-title">📋 جدول مقایسه دسته‌بندی</div>
+    <table class="comparison-table" id="cat-table">
+      <thead><tr><th>#</th><th>دسته‌بندی</th><th>تعداد</th><th>درصد</th><th>نمودار</th></tr></thead>
+      <tbody id="cat-table-body"></tbody>
+    </table>
+  </div>
+
+  <div class="ai-card">
+    <div class="ai-card-title">📋 جدول مقایسه منابع</div>
+    <table class="comparison-table" id="src-table">
+      <thead><tr><th>#</th><th>منبع</th><th>تعداد</th><th>درصد</th><th>نمودار</th></tr></thead>
+      <tbody id="src-table-body"></tbody>
+    </table>
+  </div>
+
+</div>
+
+</main>
+</div><!-- end shell -->
+
+<!-- اعلان‌ها -->
+<div class="toast-wrap" id="toast-wrap"></div>
 
 <script>
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // تنظیمات
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 const JSON_URL     = 'https://raw.githubusercontent.com/mehranfa2000/iran-env-news-bot/main/data/news.json';
 const ANALYSIS_URL = 'https://raw.githubusercontent.com/mehranfa2000/iran-env-news-bot/main/data/daily_analysis.json';
 const PAGE_SIZE    = 12;
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // وضعیت
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 let allNews      = [];
 let filteredNews = [];
-let currentPage  = 1;
+let curPage      = 1;
 let charts       = {};
+let onlyCrit     = false;
+let onlyAI       = false;
+let savedDrafts  = JSON.parse(localStorage.getItem('drafts') || '[]');
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // ابزارها
-// ═══════════════════════════════════════════
-function toShamsi(dateStr) {
-  if (!dateStr) return '—';
+// ═══════════════════════════════════════════════════════
+const esc = s => !s ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function toShamsi(d) {
+  if (!d) return '—';
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return '—';
-    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-      year:'numeric', month:'long', day:'numeric'
-    }).format(d);
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian',{year:'numeric',month:'long',day:'numeric'}).format(new Date(d));
   } catch { return '—'; }
 }
-
-function toShamsiShort(dateStr) {
-  if (!dateStr) return '—';
+function toShamsiShort(d) {
+  if (!d) return '—';
   try {
-    const d = new Date(dateStr);
-    if (isNaN(d)) return '—';
-    return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
-      month:'short', day:'numeric'
-    }).format(d);
+    return new Intl.DateTimeFormat('fa-IR-u-ca-persian',{month:'short',day:'numeric'}).format(new Date(d));
   } catch { return '—'; }
 }
-
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g,'&amp;')
-    .replace(/</g,'&lt;')
-    .replace(/>/g,'&gt;')
-    .replace(/"/g,'&quot;');
-}
-
-function showToast(msg, type='info') {
-  const t = document.getElementById('toast');
-  const icons = { success:'✅', error:'❌', info:'ℹ️' };
-  t.className = `toast show ${type}`;
-  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span> ${msg}`;
-  setTimeout(() => t.className = 'toast', 3500);
+function timeAgo(d) {
+  if (!d) return '';
+  const diff = Date.now() - new Date(d).getTime();
+  const h = Math.floor(diff/3.6e6);
+  if (h < 1) return 'کمتر از یک ساعت پیش';
+  if (h < 24) return `${h} ساعت پیش`;
+  return `${Math.floor(h/24)} روز پیش`;
 }
 
 function sensClass(s) {
-  if (!s) return 'normal';
-  if (s.includes('بحران')) return 'critical';
-  if (s.includes('حساس'))  return 'warning';
-  if (s.includes('مثبت'))  return 'positive';
-  return 'normal';
+  if (!s) return 'norm';
+  if (s.includes('بحران')) return 'crit';
+  if (s.includes('حساس'))  return 'warn';
+  if (s.includes('مثبت'))  return 'pos';
+  return 'norm';
 }
-
 function sensEmoji(s) {
   if (!s) return '🔵';
   if (s.includes('بحران')) return '🔴';
@@ -1237,522 +1218,715 @@ function sensEmoji(s) {
   if (s.includes('مثبت'))  return '🟢';
   return '🔵';
 }
-
 function sentClass(s) {
   if (!s) return 'neu';
-  if (s === 'منفی') return 'neg';
-  if (s === 'مثبت') return 'pos';
+  if (s==='منفی') return 'neg';
+  if (s==='مثبت') return 'pos';
   return 'neu';
 }
+function getChartColors(n) {
+  const p = ['#4f8ef7','#14c97e','#f5a623','#f05252','#9b6dff','#22d3ee','#ff7849','#84cc16','#14b8a6','#a855f7'];
+  return Array.from({length:n},(_,i)=>p[i%p.length]);
+}
 
-// ═══════════════════════════════════════════
-// بارگذاری داده‌ها
-// ═══════════════════════════════════════════
+// اعلان
+let toastTimer = null;
+function toast(msg, type='info', dur=3500) {
+  const wrap = document.getElementById('toast-wrap');
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  const icons = {ok:'✅',err:'❌',info:'ℹ️',warn:'⚠️'};
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span> <span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>el.classList.add('show'),10);
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),400)},dur);
+}
+
+// ساعت
+function startClock() {
+  function tick() {
+    document.getElementById('clock').textContent =
+      new Intl.DateTimeFormat('fa-IR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());
+  }
+  tick(); setInterval(tick,1000);
+}
+
+// ═══════════════════════════════════════════════════════
+// ناوبری
+// ═══════════════════════════════════════════════════════
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.add('active');
+  document.querySelectorAll(`[onclick="showPage('${name}')"]`).forEach(b=>b.classList.add('active'));
+
+  if (name==='stats' && allNews.length) renderAdvancedStats();
+  if (name==='crisis') renderCrisisPage();
+  if (name==='response') renderDraftPage();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('mobile-open');
+}
+
+// ═══════════════════════════════════════════════════════
+// بارگذاری داده
+// ═══════════════════════════════════════════════════════
 async function loadData() {
   try {
-    const r = await fetch(JSON_URL + '?t=' + Date.now());
-    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const r = await fetch(JSON_URL+'?t='+Date.now());
+    if (!r.ok) throw new Error('HTTP '+r.status);
     allNews = await r.json();
-    if (!Array.isArray(allNews)) allNews = [];
-    document.getElementById('refresh-time').textContent =
-      'آخرین بارگذاری: ' + new Intl.DateTimeFormat('fa-IR', { hour:'2-digit', minute:'2-digit' }).format(new Date());
+    if (!Array.isArray(allNews)) allNews=[];
     return true;
-  } catch (e) {
-    console.error(e);
-    showToast('خطا در بارگذاری داده‌ها: ' + e.message, 'error');
+  } catch(e) {
+    toast('خطا در بارگذاری: '+e.message,'err');
     return false;
   }
 }
 
-async function refreshData() {
-  showToast('در حال بارگذاری...', 'info');
+async function refreshAll() {
+  toast('در حال بارگذاری...','info');
   const ok = await loadData();
   if (ok) {
-    renderDashboard();
-    applyFilters();
-    showToast('داده‌ها به‌روز شد', 'success');
+    renderAll();
+    toast('داده‌ها به‌روز شد','ok');
   }
 }
 
-// ═══════════════════════════════════════════
-// رندر داشبورد
-// ═══════════════════════════════════════════
-function renderDashboard() {
+// ═══════════════════════════════════════════════════════
+// رندر کلی
+// ═══════════════════════════════════════════════════════
+function renderAll() {
   if (!allNews.length) return;
 
-  // آمار
   const total    = allNews.length;
-  const critical = allNews.filter(n => n.critical).length;
-  const sources  = [...new Set(allNews.map(n => n.source).filter(Boolean))];
-  const cats     = [...new Set(allNews.map(n => n.category).filter(Boolean))];
-
-  // اخبار امروز
+  const crits    = allNews.filter(n=>n.critical);
+  const analyzed = allNews.filter(n=>n.ai);
+  const sources  = [...new Set(allNews.map(n=>n.source).filter(Boolean))];
+  const cats     = [...new Set(allNews.map(n=>n.category).filter(Boolean))];
   const today    = new Date().toISOString().slice(0,10);
-  const todayN   = allNews.filter(n => (n.date||'').startsWith(today)).length;
+  const todayN   = allNews.filter(n=>(n.date||'').startsWith(today)).length;
 
-  document.getElementById('stat-total').textContent    = total.toLocaleString('fa');
-  document.getElementById('stat-today').textContent    = `امروز: ${todayN.toLocaleString('fa')}`;
-  document.getElementById('stat-critical').textContent = critical.toLocaleString('fa');
-  document.getElementById('stat-critical-pct').textContent =
-    Math.round(critical/total*100).toLocaleString('fa') + ' درصد از کل';
-  document.getElementById('stat-sources').textContent = sources.length.toLocaleString('fa');
-  document.getElementById('stat-cats').textContent    = cats.length.toLocaleString('fa');
+  // KPI
+  document.getElementById('kpi-total').textContent = total.toLocaleString('fa');
+  document.getElementById('kpi-today-trend').textContent = `امروز: ${todayN.toLocaleString('fa')} خبر`;
+  document.getElementById('kpi-crit').textContent = crits.length.toLocaleString('fa');
+  document.getElementById('kpi-crit-pct').textContent = Math.round(crits.length/total*100)+'٪ از کل';
+  document.getElementById('kpi-src').textContent = sources.length.toLocaleString('fa');
+  document.getElementById('kpi-ai').textContent = analyzed.length.toLocaleString('fa');
+  document.getElementById('kpi-cat').textContent = cats.length.toLocaleString('fa');
 
   // سایدبار
-  document.getElementById('sb-sources').textContent  = sources.length;
-  document.getElementById('sb-total').textContent    = total;
-  document.getElementById('sb-critical').textContent = critical;
+  document.getElementById('sb-news-count').textContent = total;
+  document.getElementById('sb-crit-count').textContent = crits.length;
+
+  // سطح هشدار
+  updateAlertLevel(crits.length, total);
+
+  // منابع سایدبار
+  renderSidebarSources(sources);
 
   // فیلترهای select
-  const catSel = document.getElementById('filter-cat');
-  const srcSel = document.getElementById('filter-src');
-  catSel.innerHTML = '<option value="all">همه دسته‌ها</option>' +
-    cats.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-  srcSel.innerHTML = '<option value="all">همه منابع</option>' +
-    sources.map(s => `<option value="${escapeHtml(s)}">${escapeHtml(s)}</option>`).join('');
+  const fCat = document.getElementById('f-cat');
+  const fSrc = document.getElementById('f-src');
+  fCat.innerHTML = '<option value="all">همه دسته‌ها</option>' +
+    cats.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join('');
+  fSrc.innerHTML = '<option value="all">همه منابع</option>' +
+    sources.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
 
   renderCharts();
   renderRecentNews();
   applyFilters();
+  renderDraftNewsSelect();
 }
 
-// ═══════════════════════════════════════════
+function updateAlertLevel(critCount, total) {
+  const pct = total > 0 ? critCount/total : 0;
+  const el  = document.getElementById('topbar-alert');
+  let cls='blue', icon='🔵', txt='وضعیت عادی';
+  if (pct > .3 || critCount >= 5) { cls='red';    icon='🔴'; txt='وضعیت بحرانی'; }
+  else if (pct > .15 || critCount >= 2) { cls='yellow'; icon='🟡'; txt='نیاز به توجه'; }
+  else if (pct === 0 && total > 0) { cls='green'; icon='🟢'; txt='وضعیت مطلوب'; }
+  el.className = `alert-level ${cls}`;
+  document.getElementById('topbar-alert-icon').textContent = icon;
+  document.getElementById('topbar-alert-txt').textContent  = txt;
+}
+
+function renderSidebarSources(sources) {
+  const wrap = document.getElementById('sb-sources');
+  const all  = ['ایرنا','مهر','همشهری','خبرآنلاین','ایمنا','اطلاعات','صدا و سیما','سلامت نیوز','ایسنا','تسنیم','فارس'];
+  wrap.innerHTML = `<div class="sb-label" style="padding:8px 6px 4px;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:1px">وضعیت منابع</div>` +
+    all.map(s=>`
+      <div class="sb-source-item">
+        <div class="sb-dot ${sources.includes(s)?'active':'inactive'}"></div>
+        <span style="font-size:11px">${s}</span>
+        ${sources.includes(s)?`<span style="margin-right:auto;font-size:10px;color:var(--green)">${allNews.filter(n=>n.source===s).length}</span>`:''}
+      </div>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
 // نمودارها
-// ═══════════════════════════════════════════
-function getChartColors(n) {
-  const palette = [
-    '#3b82f6','#10b981','#f59e0b','#ef4444',
-    '#8b5cf6','#06b6d4','#f43f5e','#84cc16',
-    '#14b8a6','#a855f7','#fb923c','#64748b'
-  ];
-  return Array.from({length:n}, (_,i) => palette[i % palette.length]);
-}
-
+// ═══════════════════════════════════════════════════════
 function renderCharts() {
-  const isDark = document.documentElement.dataset.theme === 'dark';
-  const textColor = isDark ? '#94a3b8' : '#475569';
-  const gridColor = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
+  const dark = document.documentElement.dataset.theme==='dark';
+  const tc = dark?'#8b9ec7':'#4d5e80';
+  const gc = dark?'rgba(255,255,255,.04)':'rgba(0,0,0,.04)';
+  Chart.defaults.font.family="'Vazirmatn',sans-serif";
+  Chart.defaults.color=tc;
 
-  Chart.defaults.font.family = "'Vazirmatn', sans-serif";
-  Chart.defaults.color = textColor;
+  const dCat={}, dSrc={}, dSent={low:0,high:0,neutral:0,pos:0};
+  const dHour=Array(24).fill(0);
+  allNews.forEach(n=>{
+    const c=n.category||'نامشخص'; dCat[c]=(dCat[c]||0)+1;
+    const s=n.source||'نامشخص';   dSrc[s]=(dSrc[s]||0)+1;
+    const ai=n.ai;
+    if (ai) {
+      const sent=ai.sentiment||'';
+      if (sent==='منفی') dSent.low++;
+      else if (sent==='مثبت') dSent.pos++;
+      else dSent.neutral++;
+    }
+    try {
+      const h=new Date(n.date||'').getHours();
+      if (h>=0&&h<24) dHour[h]++;
+    } catch {}
+  });
+
+  const mk=(id,cfg)=>{if(charts[id])charts[id].destroy();charts[id]=new Chart(document.getElementById(id),cfg)};
 
   // دسته‌بندی
-  const catCount = {};
-  allNews.forEach(n => { const c = n.category||'نامشخص'; catCount[c] = (catCount[c]||0)+1; });
-  const catLabels = Object.keys(catCount);
-  const catValues = Object.values(catCount);
-
-  if (charts.category) charts.category.destroy();
-  charts.category = new Chart(document.getElementById('chart-category'), {
-    type: 'doughnut',
-    data: {
-      labels: catLabels,
-      datasets: [{ data: catValues, backgroundColor: getChartColors(catLabels.length), borderWidth: 2, borderColor: isDark ? '#1a2235' : '#fff' }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position:'right', labels:{ font:{size:11,family:'Vazirmatn'}, padding:10, boxWidth:12 } },
-        tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw} خبر` } }
-      }
-    }
-  });
+  const cl=Object.keys(dCat), cv=Object.values(dCat);
+  mk('ch-cat',{type:'doughnut',data:{labels:cl,datasets:[{data:cv,backgroundColor:getChartColors(cl.length),borderWidth:2,borderColor:dark?'#1a2540':'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10,family:'Vazirmatn'},padding:8,boxWidth:10}}}}});
 
   // منابع
-  const srcCount = {};
-  allNews.forEach(n => { const s = n.source||'نامشخص'; srcCount[s] = (srcCount[s]||0)+1; });
-  const srcLabels = Object.keys(srcCount).slice(0,8);
-  const srcValues = srcLabels.map(k => srcCount[k]);
+  const sl=Object.keys(dSrc).slice(0,8), sv=sl.map(k=>dSrc[k]);
+  mk('ch-src',{type:'bar',data:{labels:sl,datasets:[{label:'خبر',data:sv,backgroundColor:getChartColors(sl.length),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:gc},ticks:{font:{size:10}}},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
 
-  if (charts.source) charts.source.destroy();
-  charts.source = new Chart(document.getElementById('chart-source'), {
-    type: 'bar',
-    data: {
-      labels: srcLabels,
-      datasets: [{ label:'تعداد خبر', data:srcValues, backgroundColor:getChartColors(srcLabels.length), borderRadius:6, borderSkipped:false }]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend:{ display:false } },
-      scales: {
-        y: { grid:{color:gridColor}, ticks:{font:{size:11}} },
-        x: { grid:{display:false}, ticks:{font:{size:11}} }
-      }
-    }
-  });
-
-  // روند ۷ روز
-  const days = [];
-  const counts = [];
-  const critCounts = [];
-  for (let i=6; i>=0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate()-i);
-    const ds = d.toISOString().slice(0,10);
+  // روند ۷ روزه
+  const days=[],cnts=[],crnts=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
     days.push(toShamsiShort(ds));
-    counts.push(allNews.filter(n=>(n.date||'').startsWith(ds)).length);
-    critCounts.push(allNews.filter(n=>(n.date||'').startsWith(ds)&&n.critical).length);
+    cnts.push(allNews.filter(n=>(n.date||'').startsWith(ds)).length);
+    crnts.push(allNews.filter(n=>(n.date||'').startsWith(ds)&&n.critical).length);
   }
+  mk('ch-trend',{type:'line',data:{labels:days,datasets:[{label:'کل اخبار',data:cnts,borderColor:'#4f8ef7',backgroundColor:'rgba(79,142,247,.1)',tension:.45,fill:true,pointRadius:4,pointBackgroundColor:'#4f8ef7'},{label:'بحرانی',data:crnts,borderColor:'#f05252',backgroundColor:'rgba(240,82,82,.1)',tension:.45,fill:true,pointRadius:4,pointBackgroundColor:'#f05252'}]},options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{labels:{font:{size:11,family:'Vazirmatn'},padding:14}}},scales:{y:{grid:{color:gc},ticks:{font:{size:10}},beginAtZero:true},x:{grid:{display:false},ticks:{font:{size:10}}}}}});
 
-  if (charts.trend) charts.trend.destroy();
-  charts.trend = new Chart(document.getElementById('chart-trend'), {
-    type: 'line',
-    data: {
-      labels: days,
-      datasets: [
-        { label:'کل اخبار', data:counts, borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,.1)', tension:.4, fill:true, pointRadius:4 },
-        { label:'بحرانی', data:critCounts, borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,.1)', tension:.4, fill:true, pointRadius:4 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode:'index', intersect:false },
-      plugins: { legend:{ labels:{ font:{size:12,family:'Vazirmatn'}, padding:16 } } },
-      scales: {
-        y: { grid:{color:gridColor}, ticks:{font:{size:11}}, beginAtZero:true },
-        x: { grid:{display:false}, ticks:{font:{size:11}} }
-      }
-    }
-  });
+  // احساسات
+  mk('ch-sent',{type:'doughnut',data:{labels:['منفی','خنثی','مثبت'],datasets:[{data:[dSent.low,dSent.neutral,dSent.pos],backgroundColor:['#f05252','#4f8ef7','#14c97e'],borderWidth:2,borderColor:dark?'#1a2540':'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11,family:'Vazirmatn'},padding:10}}}}});
+
+  // توزیع ساعتی
+  const hLabels=Array.from({length:24},(_,i)=>String(i).padStart(2,'0'));
+  mk('ch-hour',{type:'bar',data:{labels:hLabels,datasets:[{label:'تعداد خبر',data:dHour,backgroundColor:'rgba(79,142,247,.5)',hoverBackgroundColor:'#4f8ef7',borderRadius:3,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:gc},ticks:{font:{size:9}},beginAtZero:true},x:{grid:{display:false},ticks:{font:{size:9}}}}}});
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // کارت خبر
-// ═══════════════════════════════════════════
-function buildNewsCard(item) {
-  const ai = item.ai;
-  const sc = sensClass(ai?.sensitivity);
-  const hasAI = !!ai;
-  const isCrit = item.critical;
-
-  let aiHtml = '';
-  if (hasAI) {
-    aiHtml = `
-      <div class="news-ai">
-        <div class="news-ai-title">🤖 تحلیل هوش مصنوعی</div>
-        <div class="news-ai-row">
-          <span class="news-ai-label">🎯 تحلیل:</span>
-          <span class="news-ai-value">${escapeHtml(ai.summary||'')}</span>
-        </div>
-        <div class="news-ai-row">
-          <span class="news-ai-label">💡 اقدام:</span>
-          <span class="news-ai-value">${escapeHtml(ai.action||'')}</span>
-        </div>
-        ${ai.urgency ? `<div class="news-ai-row"><span class="news-ai-label">⏰ فوریت:</span><span class="news-ai-value">${escapeHtml(ai.urgency)}</span></div>` : ''}
-      </div>`;
-  }
+// ═══════════════════════════════════════════════════════
+function buildCard(item) {
+  const ai   = item.ai;
+  const sc   = item.critical ? 'crit' : (ai ? sensClass(ai.sensitivity) : 'norm');
+  const badge = item.critical ? `<span class="nbadge crit">🔴 بحرانی</span>` :
+                (ai ? `<span class="nbadge ${sensClass(ai.sensitivity)}">${sensEmoji(ai.sensitivity)} ${esc(ai.sensitivity)}</span>` : '');
+  const aiBadge = ai ? `<span class="nbadge ai-tag">🤖 AI</span>` : '';
+  const aiSection = ai ? `
+    <div class="ncard-ai">
+      <div class="ncard-ai-head">
+        🤖 تحلیل هوش مصنوعی
+        <span style="font-size:10px;color:var(--text-3);font-weight:400">⏰ ${esc(ai.urgency||'')}</span>
+      </div>
+      <div class="ncard-ai-row"><span class="ncard-ai-lbl">📌 تحلیل:</span><span class="ncard-ai-val">${esc(ai.summary||'')}</span></div>
+      <div class="ncard-ai-row"><span class="ncard-ai-lbl">💡 اقدام:</span><span class="ncard-ai-val">${esc(ai.action||'')}</span></div>
+      ${ai.draft_response?`<div class="ncard-ai-row"><span class="ncard-ai-lbl">📋 پیش‌نویس:</span><span class="ncard-ai-val" style="font-style:italic">${esc(ai.draft_response)}</span></div>`:''}
+    </div>` : '';
 
   return `
-    <div class="news-card ${isCrit?'critical':''} ${ai?.sensitivity==='مثبت'?'positive':''}">
-      <div class="news-card-header">
-        <span class="category-badge">${escapeHtml(item.category||'محیط زیست')}</span>
-        ${isCrit ? `<span class="sensitivity-badge critical">🔴 بحرانی</span>` : ''}
-        ${hasAI && !isCrit ? `<span class="sensitivity-badge ${sc}">${sensEmoji(ai.sensitivity)} ${escapeHtml(ai.sensitivity)}</span>` : ''}
-      </div>
-      <div class="news-title">${escapeHtml(item.title||'')}</div>
-      <div class="news-summary">${escapeHtml((item.summary||'').slice(0,250))}</div>
-      ${aiHtml}
-      <div class="news-footer">
-        <div class="news-meta">
-          <span class="meta-item">🗞️ ${escapeHtml(item.source||'')}</span>
-          <span class="meta-item">📅 ${toShamsi(item.date)}</span>
-          ${item.score ? `<span class="meta-item">⭐ ${item.score}</span>` : ''}
+    <div class="ncard ${sc}">
+      <div class="ncard-stripe"></div>
+      <div class="ncard-top">
+        <div class="ncard-badges">
+          <span class="nbadge cat">${esc(item.category||'محیط زیست')}</span>
+          ${badge}${aiBadge}
         </div>
-        ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" class="news-link">مشاهده ↗</a>` : ''}
+        ${item.score ? `<div class="ncard-score">⭐${item.score}</div>` : ''}
+      </div>
+      <div class="ncard-title">${esc(item.title||'')}</div>
+      <div class="ncard-summary">${esc((item.summary||'').slice(0,250))}</div>
+      ${aiSection}
+      <div class="ncard-foot">
+        <div class="ncard-meta">
+          <span class="nmeta">🗞️ ${esc(item.source||'')}</span>
+          <span class="nmeta">📅 ${toShamsi(item.date)}</span>
+          <span class="nmeta" style="color:var(--text-3)">${timeAgo(item.date)}</span>
+        </div>
+        ${item.link?`<a href="${esc(item.link)}" target="_blank" class="ncard-link">مشاهده ↗</a>`:''}
       </div>
     </div>`;
 }
 
 function renderRecentNews() {
-  const grid = document.getElementById('recent-news-grid');
-  const recent = [...allNews].slice(0, 6);
-  if (!recent.length) {
-    grid.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>خبری یافت نشد</p></div>';
-    return;
-  }
-  grid.innerHTML = recent.map(buildNewsCard).join('');
+  const grid = document.getElementById('recent-grid');
+  const recent = [...allNews].slice(0,6);
+  grid.innerHTML = recent.length ? recent.map(buildCard).join('') :
+    '<div style="grid-column:1/-1"><div class="state-box"><div class="state-icon">📭</div><div class="state-title">خبری یافت نشد</div></div></div>';
 }
 
-// ═══════════════════════════════════════════
-// فیلتر و صفحه‌بندی
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// فیلتر
+// ═══════════════════════════════════════════════════════
 function applyFilters() {
-  const q    = (document.getElementById('search-input')?.value||'').toLowerCase();
-  const cat  = document.getElementById('filter-cat')?.value || 'all';
-  const src  = document.getElementById('filter-src')?.value || 'all';
-  const crit = document.getElementById('filter-crit')?.value || 'all';
+  const q    = (document.getElementById('search')?.value||'').toLowerCase();
+  const cat  = document.getElementById('f-cat')?.value||'all';
+  const src  = document.getElementById('f-src')?.value||'all';
+  const sort = document.getElementById('f-sort')?.value||'date';
 
-  filteredNews = allNews.filter(n => {
-    if (cat  !== 'all' && n.category !== cat) return false;
-    if (src  !== 'all' && n.source   !== src) return false;
-    if (crit === 'critical' && !n.critical) return false;
-    if (crit === 'ai'       && !n.ai)       return false;
-    if (q && !((n.title||'').toLowerCase().includes(q) ||
-               (n.summary||'').toLowerCase().includes(q))) return false;
+  filteredNews = allNews.filter(n=>{
+    if (cat  !=='all' && n.category!==cat) return false;
+    if (src  !=='all' && n.source!==src)   return false;
+    if (onlyCrit && !n.critical)           return false;
+    if (onlyAI   && !n.ai)                 return false;
+    if (q && !((n.title||'').toLowerCase().includes(q)||(n.summary||'').toLowerCase().includes(q))) return false;
     return true;
   });
 
-  currentPage = 1;
+  if (sort==='score') filteredNews.sort((a,b)=>(b.score||0)-(a.score||0));
+  else if (sort==='crit') filteredNews.sort((a,b)=>(b.critical?1:0)-(a.critical?1:0));
+  else filteredNews.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+
+  curPage=1;
   renderNewsPage();
 }
 
-function filterByCategory(keyword) {
-  showSection('news');
-  setTimeout(() => {
-    const sel = document.getElementById('filter-cat');
-    if (!sel) return;
-    const opt = [...sel.options].find(o => o.value.includes(keyword));
-    if (opt) { sel.value = opt.value; applyFilters(); }
-  }, 100);
+function toggleCritFilter() {
+  onlyCrit=!onlyCrit;
+  document.getElementById('btn-only-crit').classList.toggle('active',onlyCrit);
+  if(onlyCrit)onlyAI=false,document.getElementById('btn-only-ai').classList.remove('active');
+  applyFilters();
+}
+function toggleAIFilter() {
+  onlyAI=!onlyAI;
+  document.getElementById('btn-only-ai').classList.toggle('active',onlyAI);
+  if(onlyAI)onlyCrit=false,document.getElementById('btn-only-crit').classList.remove('active');
+  applyFilters();
+}
+function quickFilter(type) {
+  onlyCrit=type==='crit';onlyAI=type==='ai';
+  document.getElementById('btn-only-crit')?.classList.toggle('active',onlyCrit);
+  document.getElementById('btn-only-ai')?.classList.toggle('active',onlyAI);
+  if(type==='today'){
+    const today=new Date().toISOString().slice(0,10);
+    filteredNews=allNews.filter(n=>(n.date||'').startsWith(today));
+    curPage=1;renderNewsPage();
+    showPage('news');return;
+  }
+  applyFilters();showPage('news');
+}
+function filterCat(keyword) {
+  const sel=document.getElementById('f-cat');
+  if(!sel)return;
+  const opt=[...sel.options].find(o=>o.value.includes(keyword));
+  if(opt)sel.value=opt.value;
+  applyFilters();showPage('news');
 }
 
 function renderNewsPage() {
   const grid  = document.getElementById('news-grid');
-  const count = document.getElementById('news-count');
-  const start = (currentPage-1)*PAGE_SIZE;
-  const slice = filteredNews.slice(start, start+PAGE_SIZE);
+  const counter=document.getElementById('news-counter');
+  const start = (curPage-1)*PAGE_SIZE;
+  const slice = filteredNews.slice(start,start+PAGE_SIZE);
 
-  count.textContent = `نمایش ${(start+1).toLocaleString('fa')}–${Math.min(start+PAGE_SIZE,filteredNews.length).toLocaleString('fa')} از ${filteredNews.length.toLocaleString('fa')} خبر`;
+  counter.textContent = `نمایش ${(start+1).toLocaleString('fa')}–${Math.min(start+PAGE_SIZE,filteredNews.length).toLocaleString('fa')} از ${filteredNews.length.toLocaleString('fa')} خبر`;
+  grid.innerHTML = slice.length
+    ? slice.map(buildCard).join('')
+    : '<div style="grid-column:1/-1"><div class="state-box"><div class="state-icon">🔍</div><div class="state-title">خبری با این فیلتر یافت نشد</div></div></div>';
 
-  if (!slice.length) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🔍</div><p>خبری با این فیلتر یافت نشد</p></div>';
-  } else {
-    grid.innerHTML = slice.map(buildNewsCard).join('');
+  renderPager();
+}
+
+function renderPager() {
+  const total=Math.ceil(filteredNews.length/PAGE_SIZE);
+  const p=document.getElementById('pager');
+  if(total<=1){p.innerHTML='';return}
+  let h=`<button class="pager-btn" onclick="goPage(${curPage-1})" ${curPage===1?'disabled':''}>❯ قبلی</button>`;
+  for(let i=1;i<=total;i++){
+    if(i===1||i===total||Math.abs(i-curPage)<=2)
+      h+=`<button class="pager-btn ${i===curPage?'on':''}" onclick="goPage(${i})">${i.toLocaleString('fa')}</button>`;
+    else if(Math.abs(i-curPage)===3) h+=`<span style="color:var(--text-3);padding:0 4px">…</span>`;
   }
-
-  renderPagination();
+  h+=`<button class="pager-btn" onclick="goPage(${curPage+1})" ${curPage===total?'disabled':''}>بعدی ❮</button>`;
+  p.innerHTML=h;
+}
+function goPage(p){
+  const t=Math.ceil(filteredNews.length/PAGE_SIZE);
+  if(p<1||p>t)return;curPage=p;renderNewsPage();
+  document.getElementById('main-content').scrollTo({top:0,behavior:'smooth'});
 }
 
-function renderPagination() {
-  const total = Math.ceil(filteredNews.length / PAGE_SIZE);
-  const pag   = document.getElementById('pagination');
-  if (total <= 1) { pag.innerHTML=''; return; }
+// ═══════════════════════════════════════════════════════
+// مرکز بحران
+// ═══════════════════════════════════════════════════════
+function renderCrisisPage() {
+  const crits = allNews.filter(n=>n.critical).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+  const pct   = allNews.length > 0 ? Math.round(crits.length/allNews.length*100) : 0;
+  let level = 'blue', icon='🔵', label='وضعیت عادی';
+  if (pct>30||crits.length>=5)      {level='red';    icon='🔴';label='وضعیت بحرانی — نیاز به اقدام فوری'}
+  else if (pct>15||crits.length>=2) {level='yellow'; icon='🟡';label='وضعیت هشدار — نظارت تشدید شود'}
+  else if (crits.length===0)         {level='green';  icon='🟢';label='وضعیت مطلوب — اقدام لازم نیست'}
 
-  let html = `<button class="page-btn" onclick="goPage(${currentPage-1})" ${currentPage===1?'disabled':''}>❯ قبلی</button>`;
-  for (let i=1; i<=total; i++) {
-    if (i===1 || i===total || Math.abs(i-currentPage)<=2)
-      html += `<button class="page-btn ${i===currentPage?'active':''}" onclick="goPage(${i})">${i.toLocaleString('fa')}</button>`;
-    else if (Math.abs(i-currentPage)===3)
-      html += `<span style="color:var(--text-muted);padding:0 4px">...</span>`;
-  }
-  html += `<button class="page-btn" onclick="goPage(${currentPage+1})" ${currentPage===total?'disabled':''}>بعدی ❮</button>`;
-  pag.innerHTML = html;
+  const today=new Date().toISOString().slice(0,10);
+  const todayCrit=crits.filter(n=>(n.date||'').startsWith(today)).length;
+
+  document.getElementById('crisis-banner-wrap').innerHTML=`
+    <div class="crisis-banner ${level}">
+      <div class="crisis-pulse">${icon}</div>
+      <div class="crisis-info">
+        <div class="crisis-title">${label}</div>
+        <div class="crisis-sub">مجموع ${crits.length.toLocaleString('fa')} خبر بحرانی از ${allNews.length.toLocaleString('fa')} خبر کل (${pct}٪)</div>
+      </div>
+      <div class="crisis-stats">
+        <div class="crisis-stat">
+          <div class="crisis-stat-val" style="color:var(--red)">${crits.length.toLocaleString('fa')}</div>
+          <div class="crisis-stat-lbl">کل بحرانی</div>
+        </div>
+        <div class="crisis-stat">
+          <div class="crisis-stat-val" style="color:var(--yellow)">${todayCrit.toLocaleString('fa')}</div>
+          <div class="crisis-stat-lbl">امروز</div>
+        </div>
+        <div class="crisis-stat">
+          <div class="crisis-stat-val" style="color:var(--blue)">${pct}٪</div>
+          <div class="crisis-stat-lbl">درصد بحرانی</div>
+        </div>
+      </div>
+      <div class="crisis-actions">
+        <button class="ctrl-btn" onclick="showPage('analysis')" style="font-size:12px">🤖 تحلیل AI</button>
+        <button class="ctrl-btn" onclick="showPage('response')" style="font-size:12px">✍️ پیش‌نویس</button>
+      </div>
+    </div>`;
+
+  document.getElementById('crisis-sub').textContent = `${crits.length} خبر بحرانی`;
+  document.getElementById('crisis-grid').innerHTML = crits.length
+    ? crits.slice(0,12).map(buildCard).join('')
+    : '<div style="grid-column:1/-1"><div class="state-box"><div class="state-icon">✅</div><div class="state-title">هیچ خبر بحرانی فعالی وجود ندارد</div></div></div>';
 }
 
-function goPage(p) {
-  const total = Math.ceil(filteredNews.length/PAGE_SIZE);
-  if (p<1 || p>total) return;
-  currentPage = p;
-  renderNewsPage();
-  window.scrollTo({top:0,behavior:'smooth'});
-}
-
-// ═══════════════════════════════════════════
-// تحلیل ۲۴ ساعته
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
+// تحلیل AI روزانه
+// ═══════════════════════════════════════════════════════
 async function loadAnalysis() {
-  const btn     = document.getElementById('analyze-btn');
-  const content = document.getElementById('analysis-content');
-  const btnText = document.getElementById('analyze-btn-text');
+  const btn  = document.getElementById('ai-btn');
+  const wrap = document.getElementById('analysis-wrap');
+  const txt  = document.getElementById('ai-btn-txt');
 
-  btn.disabled = true;
-  btn.classList.add('loading');
-  btnText.textContent = 'در حال بارگذاری تحلیل...';
-  content.innerHTML   = '<div class="loading-state"><div class="big-spinner"></div><p>در حال دریافت تحلیل هوش مصنوعی...</p></div>';
+  btn.disabled=true; btn.classList.add('loading'); txt.textContent='در حال بارگذاری...';
+  wrap.innerHTML='<div class="state-box"><div class="spinner-lg"></div><div class="state-title">در حال دریافت تحلیل هوش مصنوعی...</div></div>';
 
   try {
-    const r = await fetch(ANALYSIS_URL + '?t=' + Date.now());
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-
-    if (data.status === 'no_news') {
-      content.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">📭</div>
-          <p>در ۲۴ ساعت گذشته خبر محیط‌زیستی دریافت نشد</p>
-          <p style="font-size:11px;color:var(--text-muted)">${data.generated_at||''}</p>
-        </div>`;
+    const r=await fetch(ANALYSIS_URL+'?t='+Date.now());
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d.status==='no_news'){
+      wrap.innerHTML=`<div class="state-box"><div class="state-icon">📭</div><div class="state-title">در ۲۴ ساعت گذشته خبری دریافت نشد</div><div class="state-sub">${esc(d.generated_at||'')}</div></div>`;
     } else {
-      renderAnalysis(data);
-      showToast('تحلیل با موفقیت بارگذاری شد', 'success');
+      renderAnalysis(d);
+      toast('تحلیل با موفقیت بارگذاری شد','ok');
     }
-  } catch (e) {
-    content.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">⚠️</div>
-        <p>تحلیل هنوز آماده نیست</p>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;">تحلیل روزانه هر روز ساعت ۹:۳۰ صبح به‌روز می‌شود</p>
-        <p style="font-size:11px;color:var(--text-muted);">برای اجرای دستی: GitHub → Actions → تحلیل ۲۴ ساعته → Run workflow</p>
+  } catch(e) {
+    wrap.innerHTML=`
+      <div class="state-box">
+        <div class="state-icon">⚠️</div>
+        <div class="state-title">تحلیل هنوز آماده نیست</div>
+        <div class="state-sub">برای اجرای دستی: GitHub → Actions → تحلیل ۲۴ ساعته → Run workflow</div>
       </div>`;
-    showToast('فایل تحلیل یافت نشد. لطفاً workflow را در GitHub اجرا کنید.', 'error');
+    toast('فایل تحلیل یافت نشد. لطفاً workflow را اجرا کنید.','err',5000);
   }
 
-  btn.disabled = false;
-  btn.classList.remove('loading');
-  btnText.textContent = 'بارگذاری مجدد تحلیل';
+  btn.disabled=false; btn.classList.remove('loading'); txt.textContent='بارگذاری مجدد';
 }
 
 function renderAnalysis(d) {
-  const riskCls = { 'بحرانی':'critical','حساس':'warning','عادی':'normal','مثبت':'positive' };
-  const cls     = riskCls[d.overall_risk] || 'normal';
-  const emoji   = { critical:'🔴',warning:'🟡',normal:'🔵',positive:'🟢' }[cls];
+  const rmap={'بحرانی':'red','حساس':'yellow','عادی':'blue','مثبت':'green'};
+  const cls  = rmap[d.overall_risk]||'blue';
+  const emoji= {red:'🔴',yellow:'🟡',blue:'🔵',green:'🟢'}[cls];
 
-  // آمار کوچک
-  const catStats = Object.entries(d.category_stats||{})
-    .sort((a,b)=>b[1]-a[1])
-    .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>${k}</span><span style="color:var(--accent-blue);font-weight:600">${v}</span></div>`)
-    .join('');
+  const catStats=Object.entries(d.category_stats||{}).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px"><span>${k}</span><span style="color:var(--blue);font-weight:700">${v}</span></div>`).join('');
 
-  // توصیه‌ها
-  const recs = (d.recommendations||'').split('|').filter(Boolean)
-    .map(r=>`<li>${r.trim()}</li>`).join('');
+  const recs   =(d.recommendations||'').split('|').filter(Boolean).map(r=>`<li>${r.trim()}</li>`).join('');
+  const urgents=(d.urgent_actions||'').split('|').filter(Boolean).map(a=>`<li>${a.trim()}</li>`).join('');
+  const issues =(d.top_issues||'').split(',').filter(Boolean).map(i=>`<span class="issue-tag">${i.trim()}</span>`).join('');
 
-  // اقدامات فوری
-  const urgents = (d.urgent_actions||'').split('|').filter(Boolean)
-    .map(a=>`<li>${a.trim()}</li>`).join('');
-
-  // مسائل اصلی
-  const issues = (d.top_issues||'').split(',').filter(Boolean)
-    .map(i=>`<span style="display:inline-block;padding:4px 10px;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.2);border-radius:20px;font-size:12px;margin:3px">${i.trim()}</span>`)
-    .join('');
-
-  // کارت‌های اخبار تحلیل‌شده
-  const newsCards = (d.news_analyses||[]).map(item => {
-    const sc  = sensClass(item.sensitivity);
-    const em  = sensEmoji(item.sensitivity);
-    const stc = sentClass(item.sentiment);
+  const analyzed=(d.news_analyses||[]).map(item=>{
+    const sc=sensClass(item.sensitivity);
+    const em=sensEmoji(item.sensitivity);
+    const stc=sentClass(item.sentiment);
     return `
-      <div class="analyzed-card">
-        <div class="analyzed-sensitivity">${em}</div>
-        <div class="analyzed-content">
-          <div class="analyzed-title">${escapeHtml(item.title||'')}</div>
-          <div class="analyzed-meta">
-            <span class="analyzed-tag cat">${escapeHtml(item.category||'')}</span>
-            <span class="analyzed-tag sent ${stc}">${escapeHtml(item.sentiment||'')}</span>
-            <span class="analyzed-tag cat">${escapeHtml(item.source||'')}</span>
+      <div class="acard">
+        <div class="acard-em">${em}</div>
+        <div class="acard-body">
+          <div class="acard-title">${esc(item.title||'')}</div>
+          <div class="acard-tags">
+            <span class="atag cat">${esc(item.category||'')}</span>
+            <span class="atag ${stc}">${esc(item.sentiment||'')}</span>
+            ${item.source?`<span class="atag cat">${esc(item.source)}</span>`:''}
           </div>
-          <div class="analyzed-action">
-            <span class="analyzed-action-label">💡 اقدام:</span>
-            <span>${escapeHtml(item.action||'')}</span>
+          <div class="acard-action">
+            <span class="acard-action-lbl">💡</span>
+            <span>${esc(item.action||'')}</span>
           </div>
         </div>
-        ${item.link ? `<a href="${escapeHtml(item.link)}" target="_blank" class="analyzed-link">مشاهده ↗</a>` : ''}
-      </div>`;
-  }).join('');
+        ${item.link?`<a href="${esc(item.link)}" target="_blank" class="acard-link">مشاهده ↗</a>`:''}
+      </div>`;}).join('');
 
-  document.getElementById('analysis-content').innerHTML = `
+  document.getElementById('analysis-wrap').innerHTML=`
 
-    <!-- هدر تحلیل -->
-    <div class="analysis-header">
-      <div class="analysis-header-top">
+    <div class="ai-report-header">
+      <div class="air-top">
         <div>
-          <div class="analysis-title">🤖 گزارش تحلیلی روزانه</div>
-          <div class="analysis-subtitle">مشاوره روابط‌عمومی سازمان محیط‌زیست ایران</div>
+          <div class="air-title">📋 گزارش تحلیلی روزانه</div>
+          <div class="air-sub">مشاوره روابط‌عمومی — سازمان حفاظت محیط‌زیست ایران</div>
         </div>
-        <div class="analysis-time">
-          🕐 ${escapeHtml(d.generated_at||'—')}
-          <br>
-          <span>📰 ${(d.total_news||0).toLocaleString('fa')} خبر | 🔴 ${(d.critical_count||0).toLocaleString('fa')} بحرانی</span>
+        <div class="air-meta">
+          🕐 ${esc(d.generated_at||'—')}<br>
+          📰 ${(d.total_news||0).toLocaleString('fa')} خبر &nbsp;|&nbsp; 🔴 ${(d.critical_count||0).toLocaleString('fa')} بحرانی
         </div>
       </div>
-
-      <div class="risk-indicator ${cls}">
-        <div class="risk-pulse"></div>
-        ${emoji} سطح ریسک کلی: <strong>${escapeHtml(d.overall_risk||'—')}</strong>
+      <div class="risk-meter ${cls}">
+        <div class="risk-anim"></div>
+        ${emoji} سطح ریسک کلی امروز: <strong>${esc(d.overall_risk||'—')}</strong>
       </div>
-
-      <div class="executive-summary">${escapeHtml(d.executive_summary||'')}</div>
+      <div class="exec-summary">${esc(d.executive_summary||'')}</div>
     </div>
 
-    <!-- مسائل اصلی -->
-    ${issues ? `
-    <div class="analysis-card" style="margin-bottom:16px">
-      <div class="analysis-card-title">🎯 مهم‌ترین مسائل امروز</div>
-      <div>${issues}</div>
-    </div>` : ''}
+    ${issues?`<div class="issues-wrap"><div class="issues-title">🎯 مهم‌ترین مسائل امروز</div>${issues}</div>`:''}
 
-    <!-- گرید تحلیل -->
-    <div class="analysis-grid">
-
-      <div class="analysis-card">
-        <div class="analysis-card-title">💡 توصیه‌های کاربردی</div>
-        <ul class="analysis-list">${recs || '<li>موردی یافت نشد</li>'}</ul>
+    <div class="ai-grid">
+      <div class="ai-card">
+        <div class="ai-card-title">💡 توصیه‌های کاربردی</div>
+        <ul class="ai-list">${recs||'<li>موردی یافت نشد</li>'}</ul>
       </div>
-
-      <div class="analysis-card">
-        <div class="analysis-card-title">⚡ اقدامات فوری</div>
-        <ul class="analysis-list urgent">${urgents || '<li>اقدام فوری نیاز نیست</li>'}</ul>
+      <div class="ai-card">
+        <div class="ai-card-title">⚡ اقدامات فوری</div>
+        <ul class="ai-list red">${urgents||'<li>اقدام فوری نیاز نیست</li>'}</ul>
       </div>
-
-      <div class="analysis-card">
-        <div class="analysis-card-title">📡 راهبرد رسانه‌ای</div>
-        <p style="font-size:13px;color:var(--text-secondary);line-height:1.8">${escapeHtml(d.media_strategy||'—')}</p>
+      <div class="ai-card">
+        <div class="ai-card-title">📡 راهبرد رسانه‌ای</div>
+        <p style="font-size:13px;color:var(--text-2);line-height:1.9">${esc(d.media_strategy||'—')}</p>
       </div>
-
-      <div class="analysis-card">
-        <div class="analysis-card-title">📊 آمار دسته‌بندی</div>
-        ${catStats || '<p style="color:var(--text-muted);font-size:13px">داده‌ای موجود نیست</p>'}
+      <div class="ai-card">
+        <div class="ai-card-title">📊 آمار دسته‌بندی</div>
+        ${catStats||'<p style="font-size:12px;color:var(--text-3)">داده‌ای موجود نیست</p>'}
       </div>
-
+      ${d.positive_points&&d.positive_points!=='موردی یافت نشد'?`
+      <div class="ai-card full" style="border-color:rgba(20,201,126,.3)">
+        <div class="ai-card-title" style="color:var(--green)">🟢 نکات مثبت و دستاوردها</div>
+        <ul class="ai-list green"><li>${esc(d.positive_points)}</li></ul>
+      </div>`:''}
+      ${d.stakeholders?`
+      <div class="ai-card full">
+        <div class="ai-card-title">🏛️ سازمان‌های ذینفع</div>
+        <div style="display:flex;flex-wrap:wrap;gap:7px">
+          ${d.stakeholders.split(',').map(s=>`<span style="padding:4px 12px;background:rgba(79,142,247,.1);color:var(--blue);border:1px solid rgba(79,142,247,.2);border-radius:8px;font-size:12px">${esc(s.trim())}</span>`).join('')}
+        </div>
+      </div>`:''}
     </div>
 
-    ${d.positive_points && d.positive_points !== 'موردی یافت نشد' ? `
-    <div class="analysis-card" style="margin-bottom:20px;border-color:rgba(16,185,129,.3)">
-      <div class="analysis-card-title" style="color:var(--accent-green)">🟢 نکات مثبت و دستاوردها</div>
-      <p style="font-size:13px;color:var(--text-secondary);line-height:1.8">${escapeHtml(d.positive_points)}</p>
-    </div>` : ''}
-
-    <!-- اخبار تحلیل‌شده -->
-    ${newsCards ? `
-    <div style="font-size:15px;font-weight:700;margin-bottom:14px;display:flex;align-items:center;gap:8px">
-      🔍 اخبار تحلیل‌شده توسط هوش مصنوعی
-      <span style="font-size:12px;font-weight:400;color:var(--text-muted)">${(d.news_analyses||[]).length} خبر</span>
+    ${analyzed?`
+    <div class="section-head">
+      <div class="section-title">🔍 اخبار تحلیل‌شده توسط هوش مصنوعی</div>
+      <span class="section-sub">${(d.news_analyses||[]).length} خبر</span>
     </div>
-    <div class="analyzed-news-grid">${newsCards}</div>` : ''}
-
-    <!-- ذینفعان -->
-    ${d.stakeholders ? `
-    <div class="analysis-card">
-      <div class="analysis-card-title">🏛️ سازمان‌های ذینفع</div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px">
-        ${d.stakeholders.split(',').map(s=>`<span style="padding:5px 12px;background:rgba(59,130,246,.1);color:var(--accent-blue);border:1px solid rgba(59,130,246,.2);border-radius:8px;font-size:12px">${escapeHtml(s.trim())}</span>`).join('')}
-      </div>
-    </div>` : ''}
+    <div class="analyzed-list">${analyzed}</div>`:''}
   `;
 }
 
-// ═══════════════════════════════════════════
-// ناوبری
-// ═══════════════════════════════════════════
-function showSection(name) {
-  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-btn,.sidebar-link').forEach(b => b.classList.remove('active'));
-  document.getElementById('section-' + name)?.classList.add('active');
-  document.querySelectorAll(`[onclick="showSection('${name}')"]`).forEach(b => b.classList.add('active'));
+// ═══════════════════════════════════════════════════════
+// مدیریت پاسخ
+// ═══════════════════════════════════════════════════════
+function renderDraftPage() {
+  renderDraftNewsSelect();
+  renderSavedDrafts();
 }
 
-// ═══════════════════════════════════════════
+function renderDraftNewsSelect() {
+  const sel = document.getElementById('draft-news-sel');
+  if (!sel) return;
+  const crits = allNews.filter(n=>n.critical||n.ai).slice(0,50);
+  sel.innerHTML = '<option value="">— خبر را انتخاب کنید —</option>' +
+    crits.map((n,i)=>`<option value="${i}">[${n.critical?'🔴 بحرانی':'🤖 AI'}] ${esc((n.title||'').slice(0,60))}</option>`).join('');
+  sel._data = crits;
+}
+
+function loadDraftFromNews() {
+  const sel = document.getElementById('draft-news-sel');
+  const idx = parseInt(sel.value);
+  if (isNaN(idx)) return;
+  const item = sel._data?.[idx];
+  if (!item) return;
+  document.getElementById('draft-selected-info').textContent =
+    `📅 ${toShamsi(item.date)} | 🗞️ ${item.source||''} | ${item.category||''}`;
+  const ai = item.ai;
+  if (ai?.draft_response) {
+    document.getElementById('draft-area').value = ai.draft_response;
+    toast('پیش‌نویس از تحلیل AI بارگذاری شد','ok');
+  } else {
+    document.getElementById('draft-area').value =
+      `با احترام،\n\nسازمان حفاظت محیط‌زیست ایران در خصوص خبر «${item.title||''}» موضع رسمی خود را به شرح ذیل اعلام می‌دارد:\n\n...\n\nروابط عمومی سازمان حفاظت محیط‌زیست ایران`;
+    toast('قالب پیش‌فرض بارگذاری شد','info');
+  }
+}
+
+function copyDraft() {
+  const txt = document.getElementById('draft-area').value;
+  if (!txt) { toast('پیش‌نویسی برای کپی وجود ندارد','warn'); return; }
+  navigator.clipboard.writeText(txt).then(()=>toast('کپی شد!','ok'));
+}
+
+function clearDraft() {
+  document.getElementById('draft-area').value='';
+  document.getElementById('draft-selected-info').textContent='';
+  document.getElementById('draft-news-sel').value='';
+}
+
+function saveDraftLocal() {
+  const txt = document.getElementById('draft-area').value.trim();
+  if (!txt) { toast('محتوایی برای ذخیره وجود ندارد','warn'); return; }
+  savedDrafts.unshift({ text:txt, date:new Date().toISOString(), id:Date.now() });
+  if (savedDrafts.length>10) savedDrafts=savedDrafts.slice(0,10);
+  localStorage.setItem('drafts',JSON.stringify(savedDrafts));
+  renderSavedDrafts();
+  toast('پیش‌نویس ذخیره شد','ok');
+}
+
+function renderSavedDrafts() {
+  const wrap = document.getElementById('saved-drafts-list');
+  if (!wrap) return;
+  if (!savedDrafts.length) {
+    wrap.innerHTML='<div style="font-size:12px;color:var(--text-3)">هنوز پیش‌نویسی ذخیره نشده است</div>';
+    return;
+  }
+  wrap.innerHTML = savedDrafts.map((d,i)=>`
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)">
+      <div style="flex:1">
+        <div style="font-size:11px;color:var(--text-3);margin-bottom:4px">${toShamsi(d.date)}</div>
+        <div style="font-size:12px;color:var(--text-2);line-height:1.6">${esc(d.text.slice(0,120))}...</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-shrink:0">
+        <button class="draft-btn" onclick="loadSavedDraft(${i})" style="font-size:11px;padding:4px 8px">بارگذاری</button>
+        <button class="draft-btn" onclick="deleteSavedDraft(${i})" style="font-size:11px;padding:4px 8px;color:var(--red)">🗑️</button>
+      </div>
+    </div>`).join('');
+}
+
+function loadSavedDraft(i) {
+  document.getElementById('draft-area').value = savedDrafts[i]?.text||'';
+  toast('پیش‌نویس بارگذاری شد','ok');
+}
+function deleteSavedDraft(i) {
+  savedDrafts.splice(i,1);
+  localStorage.setItem('drafts',JSON.stringify(savedDrafts));
+  renderSavedDrafts();
+  toast('پیش‌نویس حذف شد','info');
+}
+
+// ═══════════════════════════════════════════════════════
+// آمار پیشرفته
+// ═══════════════════════════════════════════════════════
+function renderAdvancedStats() {
+  const dark=document.documentElement.dataset.theme==='dark';
+  const gc=dark?'rgba(255,255,255,.04)':'rgba(0,0,0,.04)';
+
+  // ۳۰ روز
+  const days30=[],cnts30=[];
+  for(let i=29;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const ds=d.toISOString().slice(0,10);
+    days30.push(toShamsiShort(ds));
+    cnts30.push(allNews.filter(n=>(n.date||'').startsWith(ds)).length);
+  }
+  if(charts['ch-30day'])charts['ch-30day'].destroy();
+  charts['ch-30day']=new Chart(document.getElementById('ch-30day'),{
+    type:'bar',
+    data:{labels:days30,datasets:[{label:'خبر',data:cnts30,backgroundColor:'rgba(79,142,247,.5)',hoverBackgroundColor:'#4f8ef7',borderRadius:3,borderSkipped:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{color:gc},ticks:{font:{size:9}},beginAtZero:true},x:{grid:{display:false},ticks:{font:{size:9},maxTicksLimit:10}}}}
+  });
+
+  // منابع
+  const srcCount={};
+  allNews.forEach(n=>{const s=n.source||'نامشخص';srcCount[s]=(srcCount[s]||0)+1});
+  const sl=Object.entries(srcCount).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  if(charts['ch-top-src'])charts['ch-top-src'].destroy();
+  charts['ch-top-src']=new Chart(document.getElementById('ch-top-src'),{
+    type:'bar',
+    data:{labels:sl.map(x=>x[0]),datasets:[{label:'خبر',data:sl.map(x=>x[1]),backgroundColor:getChartColors(sl.length),borderRadius:5,borderSkipped:false}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{color:gc},beginAtZero:true,ticks:{font:{size:10}}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+
+  // جدول دسته‌بندی
+  const catCount={};
+  allNews.forEach(n=>{const c=n.category||'نامشخص';catCount[c]=(catCount[c]||0)+1});
+  const total=allNews.length;
+  const catSorted=Object.entries(catCount).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('cat-table-body').innerHTML=catSorted.map(([k,v],i)=>`
+    <tr>
+      <td>${(i+1).toLocaleString('fa')}</td>
+      <td>${esc(k)}</td>
+      <td><strong style="color:var(--blue)">${v.toLocaleString('fa')}</strong></td>
+      <td>${Math.round(v/total*100)}٪</td>
+      <td style="width:120px"><div class="bar-mini" style="width:${Math.round(v/catSorted[0][1]*100)}%"></div></td>
+    </tr>`).join('');
+
+  const srcSorted=Object.entries(srcCount).sort((a,b)=>b[1]-a[1]);
+  document.getElementById('src-table-body').innerHTML=srcSorted.map(([k,v],i)=>`
+    <tr>
+      <td>${(i+1).toLocaleString('fa')}</td>
+      <td>${esc(k)}</td>
+      <td><strong style="color:var(--green)">${v.toLocaleString('fa')}</strong></td>
+      <td>${Math.round(v/total*100)}٪</td>
+      <td style="width:120px"><div class="bar-mini" style="width:${Math.round(v/srcSorted[0][1]*100)}%;background:linear-gradient(90deg,var(--green),var(--cyan))"></div></td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════
 // تم
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 function toggleTheme() {
-  const html   = document.documentElement;
-  const isDark = html.dataset.theme === 'dark';
-  html.dataset.theme = isDark ? 'light' : 'dark';
-  document.querySelector('.theme-btn').textContent = isDark ? '🌙' : '☀️';
-  localStorage.setItem('theme', html.dataset.theme);
-  if (allNews.length) renderCharts();
+  const h=document.documentElement;
+  const dark=h.dataset.theme==='dark';
+  h.dataset.theme=dark?'light':'dark';
+  document.getElementById('theme-btn').textContent=dark?'🌙':'☀️';
+  localStorage.setItem('theme',h.dataset.theme);
+  if(allNews.length)renderCharts();
+  if(document.getElementById('page-stats').classList.contains('active'))renderAdvancedStats();
 }
 
-// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════════════════
 // راه‌اندازی
-// ═══════════════════════════════════════════
-(async function init() {
-  const savedTheme = localStorage.getItem('theme') || 'dark';
-  document.documentElement.dataset.theme = savedTheme;
-  document.querySelector('.theme-btn').textContent = savedTheme === 'dark' ? '🌙' : '☀️';
+// ═══════════════════════════════════════════════════════
+(async()=>{
+  // تم
+  const t=localStorage.getItem('theme')||'dark';
+  document.documentElement.dataset.theme=t;
+  document.getElementById('theme-btn').textContent=t==='dark'?'🌙':'☀️';
 
-  const ok = await loadData();
-  if (ok) renderDashboard();
+  // دکمه موبایل
+  if(window.innerWidth<=768) document.getElementById('menu-btn').style.display='flex';
+  window.addEventListener('resize',()=>{
+    document.getElementById('menu-btn').style.display=window.innerWidth<=768?'flex':'none';
+  });
+
+  startClock();
+
+  // بارگذاری داده
+  const ok=await loadData();
+  if(ok) renderAll();
+
+  // بارگذاری خودکار هر ۵ دقیقه
+  setInterval(async()=>{
+    const ok=await loadData();
+    if(ok)renderAll();
+  },5*60*1000);
 })();
 </script>
 </body>
