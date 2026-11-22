@@ -1,6 +1,6 @@
 # ============================================================
-#  main.py — هماهنگ‌کننده اصلی
-#  نسخه 2.0 | آذر ۱۴۰۵
+#  main.py — هماهنگ‌کننده اصلی + تحلیل AI
+#  نسخه 3.0 | آذر ۱۴۰۵
 # ============================================================
 
 import json
@@ -12,8 +12,12 @@ from datetime import datetime, timezone
 from src.collector import collect_all_feeds
 from src.filter    import filter_news
 from src.sender    import send_to_telegram, send_to_bale
-from src.utils     import parse_rss_date, now_utc_iso, now_shamsi
-from src.config    import MAX_NEWS_PER_RUN, DELAY_BETWEEN_SENDS, MAX_STORED_NEWS
+from src.analyzer  import analyze_batch
+from src.utils     import parse_rss_date, now_utc_iso
+from src.config    import (
+    MAX_NEWS_PER_RUN, DELAY_BETWEEN_SENDS,
+    MAX_STORED_NEWS, AI_ENABLED,
+)
 
 NEWS_FILE = Path("data/news.json")
 
@@ -30,7 +34,7 @@ def load_news() -> list:
             return data
         return []
     except Exception as e:
-        print(f"⚠️  خطا در خواندن news.json: {e}")
+        print(f"⚠️  خطا: {e}")
         return []
 
 
@@ -40,7 +44,7 @@ def save_news(news_list: list) -> bool:
         trimmed = news_list[-MAX_STORED_NEWS:]
         with open(NEWS_FILE, "w", encoding="utf-8") as f:
             json.dump(trimmed, f, ensure_ascii=False, indent=2)
-        print(f"💾 {len(trimmed)} خبر در news.json ذخیره شد")
+        print(f"💾 {len(trimmed)} خبر ذخیره شد")
         return True
     except Exception as e:
         print(f"❌ خطا در ذخیره: {e}")
@@ -50,12 +54,13 @@ def save_news(news_list: list) -> bool:
 def main():
     t0 = time.time()
     print("=" * 60)
-    print("🌿 سامانه پایش اخبار محیط زیست ایران — نسخه ۲.۰")
+    print("🌿 سامانه پایش اخبار محیط زیست — نسخه ۳.۰")
     print(f"⏰ {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} UTC")
+    print(f"🧠 AI: {'✅ فعال' if AI_ENABLED else '❌ غیرفعال'}")
     print("=" * 60)
 
-    # ── ۱. بارگذاری اخبار قبلی ──────────────────────────────
-    existing  = load_news()
+    # ── ۱. بارگذاری ──────────────────────────────────────────
+    existing   = load_news()
     seen_links = {a.get("link", "").strip() for a in existing if a.get("link")}
 
     # ── ۲. جمع‌آوری ─────────────────────────────────────────
@@ -71,7 +76,7 @@ def main():
     print("\n📌 مرحله ۲: فیلتر محیط‌زیستی...")
     try:
         filtered = filter_news(raw)
-        print(f"✅ {len(filtered)} خبر محیط‌زیستی پیدا شد")
+        print(f"✅ {len(filtered)} خبر محیط‌زیستی")
     except Exception as e:
         print(f"❌ فیلتر ناموفق: {e}")
         save_news(existing)
@@ -94,15 +99,20 @@ def main():
         save_news(existing)
         return
 
-    # ── ۵. ارسال ────────────────────────────────────────────
-    print(f"\n📌 مرحله ۴: ارسال {len(new_items)} خبر...")
+    # ── ۵. تاریخ شمسی ───────────────────────────────────────
+    for art in new_items:
+        art["date_shamsi"] = parse_rss_date(art.get("published", ""))
+
+    # ── ۶. تحلیل AI 🧠 ──────────────────────────────────────
+    print("\n📌 مرحله ۴: تحلیل AI...")
+    new_items = analyze_batch(new_items)
+
+    # ── ۷. ارسال ────────────────────────────────────────────
+    print(f"\n📌 مرحله ۵: ارسال {len(new_items)} خبر...")
     sent = tg_fail = bale_fail = 0
 
     for i, art in enumerate(new_items, 1):
         print(f"\n  [{i}/{len(new_items)}] {art.get('title','')[:55]}...")
-
-        # افزودن تاریخ شمسی
-        art["date_shamsi"] = parse_rss_date(art.get("published", ""))
 
         tg_ok = bale_ok = False
 
@@ -134,8 +144,8 @@ def main():
         if tg_ok or bale_ok:
             sent += 1
 
-    # ── ۶. ذخیره ────────────────────────────────────────────
-    print("\n📌 مرحله ۵: ذخیره...")
+    # ── ۸. ذخیره ────────────────────────────────────────────
+    print("\n📌 مرحله ۶: ذخیره...")
     ok = save_news(existing)
 
     # ── گزارش ───────────────────────────────────────────────
@@ -148,7 +158,7 @@ def main():
     print(f"   ارسال موفق:    {sent}")
     print(f"   خطای تلگرام:  {tg_fail}")
     print(f"   خطای بله:     {bale_fail}")
-    print(f"   کل ذخیره‌شده:  {len(existing)}")
+    print(f"   AI فعال:       {'بله' if AI_ENABLED else 'خیر'}")
     print(f"   زمان اجرا:    {elapsed}s")
     print("=" * 60)
 
