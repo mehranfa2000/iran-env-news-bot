@@ -1,7 +1,6 @@
 # ============================================================
-#  src/collector.py — جمع‌آوری اخبار از ۱۱ فید RSS
-#  نسخه: 2.0 | آذر ۱۴۰۵
-#  استانداردهای 2026: User-Agent، retry، timeout
+#  src/collector.py — جمع‌آوری از ۱۱ فید RSS
+#  استانداردهای 2026: User-Agent rotation، retry، backoff
 # ============================================================
 
 import time
@@ -9,89 +8,31 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 
-# ── لیست منابع RSS تأییدشده ──────────────────────────────────
+# ── ۱۱ فید RSS تأییدشده ─────────────────────────────────────
 RSS_FEEDS = [
-    {
-        "url":    "https://www.irna.ir/rss/tp/32",
-        "source": "ایرنا",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.mehrnews.com/rss/tp/64",
-        "source": "مهر",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.hamshahrionline.ir/rss/tp/584",
-        "source": "همشهری",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.khabaronline.ir/rss/tp/44",
-        "source": "خبرآنلاین",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.imna.ir/rss/tp/153",
-        "source": "ایمنا",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.yjc.ir/fa/rss/5/74",
-        "source": "باشگاه خبرنگاران",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.ettelaat.com/rss/tp/65",
-        "source": "اطلاعات",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.iribnews.ir/fa/rss/7/39",
-        "source": "صدا و سیما",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.iribnews.ir/fa/rss/6/8",
-        "source": "صدا و سیما — آب و انرژی",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.salamatnews.com/rss/tp/11",
-        "source": "سلامت نیوز",
-        "dedicated": True,
-    },
-    {
-        "url":    "https://www.isna.ir/rss",
-        "source": "ایسنا",
-        "dedicated": False,   # فید عمومی — نیاز به فیلتر سخت‌تر دارد
-    },
+    {"url": "https://www.irna.ir/rss/tp/32",              "source": "ایرنا",                  "dedicated": True},
+    {"url": "https://www.mehrnews.com/rss/tp/64",         "source": "مهر",                    "dedicated": True},
+    {"url": "https://www.hamshahrionline.ir/rss/tp/584",  "source": "همشهری",                 "dedicated": True},
+    {"url": "https://www.khabaronline.ir/rss/tp/44",      "source": "خبرآنلاین",              "dedicated": True},
+    {"url": "https://www.imna.ir/rss/tp/153",             "source": "ایمنا",                  "dedicated": True},
+    {"url": "https://www.yjc.ir/fa/rss/5/74",             "source": "باشگاه خبرنگاران",       "dedicated": True},
+    {"url": "https://www.ettelaat.com/rss/tp/65",         "source": "اطلاعات",                "dedicated": True},
+    {"url": "https://www.iribnews.ir/fa/rss/7/39",        "source": "صدا و سیما",             "dedicated": True},
+    {"url": "https://www.iribnews.ir/fa/rss/6/8",         "source": "صدا و سیما آب و انرژی", "dedicated": True},
+    {"url": "https://www.salamatnews.com/rss/tp/11",      "source": "سلامت نیوز",             "dedicated": True},
+    {"url": "https://www.isna.ir/rss",                    "source": "ایسنا",                  "dedicated": False},
 ]
 
-# ── User-Agent های مختلف برای جلوگیری از بلاک شدن ────────────
 USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/131.0.0.0 Safari/537.36",
-
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/131.0.0.0 Safari/537.36",
-
-    "Mozilla/5.0 (X11; Linux x86_64) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/131.0.0.0 Safari/537.36",
-
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) "
-    "Gecko/20100101 Firefox/132.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
 ]
-
-# ── شمارنده برای چرخش User-Agent ─────────────────────────────
 _ua_index = 0
 
 
-def _get_next_ua() -> str:
-    """هر بار یک User-Agent متفاوت برمی‌گرداند"""
+def _next_ua() -> str:
     global _ua_index
     ua = USER_AGENTS[_ua_index % len(USER_AGENTS)]
     _ua_index += 1
@@ -99,143 +40,60 @@ def _get_next_ua() -> str:
 
 
 def _clean_html(raw: str) -> str:
-    """
-    حذف تگ‌های HTML از متن
-    فقط اگر متن واقعاً HTML باشد (شامل < و >)
-    """
     if not raw:
         return ""
     if "<" in raw and ">" in raw:
         try:
-            return BeautifulSoup(raw, "html.parser").get_text(
-                separator=" ", strip=True
-            )
+            return BeautifulSoup(raw, "html.parser").get_text(separator=" ", strip=True)
         except Exception:
             return raw
     return raw.strip()
 
 
-def fetch_feed_with_retry(
-    url: str,
-    source: str,
-    max_retries: int = 3,
-    timeout: int = 20,
-) -> list:
-    """
-    دریافت فید RSS با retry و exponential backoff
-
-    Returns:
-        لیست مقالات خام از فید
-    """
+def _fetch(url: str, source: str, retries: int = 3) -> list:
     headers = {
-        "User-Agent": _get_next_ua(),
-        "Accept": (
-            "application/rss+xml, application/xml, "
-            "application/atom+xml, text/xml, */*"
-        ),
+        "User-Agent": _next_ua(),
+        "Accept": "application/rss+xml, application/xml, text/xml, */*",
         "Accept-Language": "fa,en;q=0.9",
-        "Cache-Control": "no-cache",
     }
-
-    for attempt in range(1, max_retries + 1):
+    for attempt in range(1, retries + 1):
         try:
-            # دریافت محتوای فید با requests (کنترل بهتر)
-            response = requests.get(
-                url,
-                headers=headers,
-                timeout=timeout,
-                allow_redirects=True,
-            )
-
-            # اگر 403 بود — این سرور GitHub را بلاک کرده، تلاش مجدد بی‌فایده است
-            if response.status_code == 403:
-                print(f"    ⛔ {source}: دسترسی رد شد (403) — رد می‌شود")
+            r = requests.get(url, headers=headers, timeout=20, allow_redirects=True)
+            if r.status_code == 403:
+                print(f"    ⛔ {source}: 403 — رد می‌شود")
                 return []
-
-            # اگر کد وضعیت موفق نبود
-            if response.status_code != 200:
-                print(
-                    f"    ⚠️  {source}: کد {response.status_code} "
-                    f"(تلاش {attempt}/{max_retries})"
-                )
-                if attempt < max_retries:
-                    wait = 2 ** attempt      # 2، 4، 8 ثانیه
-                    time.sleep(wait)
+            if r.status_code != 200:
+                print(f"    ⚠️  {source}: HTTP {r.status_code} (تلاش {attempt}/{retries})")
+                time.sleep(2 ** attempt)
                 continue
-
-            # parse کردن فید
-            feed = feedparser.parse(response.content)
-
+            feed = feedparser.parse(r.content)
             if not feed.entries:
-                print(f"    ⚠️  {source}: فید خالی است")
+                print(f"    ⚠️  {source}: فید خالی")
                 return []
-
-            print(f"    ✅ {source}: {len(feed.entries)} مقاله دریافت شد")
+            print(f"    ✅ {source}: {len(feed.entries)} خبر")
             return feed.entries
-
         except requests.exceptions.Timeout:
-            print(
-                f"    ⏱️  {source}: timeout "
-                f"(تلاش {attempt}/{max_retries})"
-            )
+            print(f"    ⏱️  {source}: timeout (تلاش {attempt}/{retries})")
         except requests.exceptions.ConnectionError:
-            print(
-                f"    🔌 {source}: خطای اتصال "
-                f"(تلاش {attempt}/{max_retries})"
-            )
+            print(f"    🔌 {source}: خطای اتصال (تلاش {attempt}/{retries})")
         except Exception as e:
-            print(
-                f"    ❌ {source}: خطای غیرمنتظره: {e} "
-                f"(تلاش {attempt}/{max_retries})"
-            )
-
-        if attempt < max_retries:
-            wait = 2 ** attempt
-            print(f"    ⏳ {wait} ثانیه صبر می‌کنیم...")
-            time.sleep(wait)
-
-    print(f"    ❌ {source}: همه {max_retries} تلاش ناموفق بود")
+            print(f"    ❌ {source}: {e}")
+        if attempt < retries:
+            time.sleep(2 ** attempt)
     return []
 
 
-def parse_entry(entry, source: str, dedicated: bool) -> dict | None:
-    """
-    تبدیل یک entry از feedparser به دیکشنری استاندارد
-
-    Returns:
-        دیکشنری خبر یا None اگر لینک نداشت
-    """
-    # لینک — کلید اصلی deduplication
-    link = ""
-    if hasattr(entry, "link") and entry.link:
-        link = entry.link.strip()
+def _parse_entry(entry, source: str, dedicated: bool) -> dict | None:
+    link = getattr(entry, "link", "").strip()
     if not link:
         return None
 
-    # عنوان
-    title = ""
-    if hasattr(entry, "title") and entry.title:
-        title = _clean_html(entry.title).strip()
-    if not title:
-        title = "بدون عنوان"
-
-    # خلاصه / توضیح
-    summary = ""
-    if hasattr(entry, "summary") and entry.summary:
-        summary = _clean_html(entry.summary).strip()
-    elif hasattr(entry, "description") and entry.description:
-        summary = _clean_html(entry.description).strip()
-
-    # محدود کردن خلاصه به ۵۰۰ کاراکتر
+    title   = _clean_html(getattr(entry, "title",   "")).strip() or "بدون عنوان"
+    summary = _clean_html(getattr(entry, "summary",  "") or getattr(entry, "description", "")).strip()
     if len(summary) > 500:
         summary = summary[:500] + "..."
 
-    # تاریخ انتشار
-    published = ""
-    if hasattr(entry, "published") and entry.published:
-        published = entry.published
-    elif hasattr(entry, "updated") and entry.updated:
-        published = entry.updated
+    published = getattr(entry, "published", "") or getattr(entry, "updated", "")
 
     return {
         "title":     title,
@@ -243,47 +101,23 @@ def parse_entry(entry, source: str, dedicated: bool) -> dict | None:
         "summary":   summary,
         "source":    source,
         "published": published,
-        "dedicated": dedicated,   # آیا فید اختصاصی محیط‌زیست است؟
+        "dedicated": dedicated,
     }
 
 
 def collect_all_feeds() -> list:
-    """
-    جمع‌آوری اخبار از همه ۱۱ فید RSS
-
-    Returns:
-        لیست همه مقالات خام (قبل از فیلتر)
-    """
+    """جمع‌آوری از همه ۱۱ فید — نقطه ورود اصلی"""
     all_articles = []
-
-    print(f"📡 شروع جمع‌آوری از {len(RSS_FEEDS)} منبع خبری...")
+    print(f"📡 جمع‌آوری از {len(RSS_FEEDS)} منبع...")
     print("-" * 50)
-
-    for feed_info in RSS_FEEDS:
-        url       = feed_info["url"]
-        source    = feed_info["source"]
-        dedicated = feed_info["dedicated"]
-
-        print(f"  🔍 {source}:")
-
-        # دریافت entries از فید
-        entries = fetch_feed_with_retry(url, source)
-
-        if not entries:
-            continue
-
-        # تبدیل هر entry به دیکشنری استاندارد
-        count = 0
-        for entry in entries:
-            article = parse_entry(entry, source, dedicated)
-            if article:
-                all_articles.append(article)
-                count += 1
-
-        # کمی تأخیر بین درخواست‌ها (احترام به سرورها)
+    for f in RSS_FEEDS:
+        print(f"  🔍 {f['source']}:")
+        entries = _fetch(f["url"], f["source"])
+        for e in entries:
+            art = _parse_entry(e, f["source"], f["dedicated"])
+            if art:
+                all_articles.append(art)
         time.sleep(1)
-
     print("-" * 50)
-    print(f"📊 جمع کل قبل از فیلتر: {len(all_articles)} خبر")
-
+    print(f"📊 جمع کل: {len(all_articles)} خبر")
     return all_articles
