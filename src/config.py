@@ -1,24 +1,29 @@
 # ============================================================
-# تنظیمات مرکزی پروژه
+#  src/config.py — تنظیمات مرکزی پروژه
 # ============================================================
 
 import os
 
-class Config:
-    # تلگرام
-    TG_TOKEN   = os.getenv("TELEGRAM_BOT_TOKEN", "")
-    TG_CHAT_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
+# ── توکن‌ها و شناسه‌ها (از GitHub Secrets) ──────────────────
+TELEGRAM_BOT_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN",  "")
+TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
+BALE_BOT_TOKEN      = os.getenv("BALE_BOT_TOKEN",      "")
+BALE_CHANNEL_ID     = os.getenv("BALE_CHANNEL_ID",     "")
 
-    # بله
-    BALE_TOKEN   = os.getenv("BALE_BOT_TOKEN", "")
-    BALE_CHAT_ID = os.getenv("BALE_CHANNEL_ID", "")
+# ── تنظیمات ارسال ────────────────────────────────────────────
+MAX_NEWS_PER_RUN    = 30     # حداکثر خبر در هر اجرا
+DELAY_BETWEEN_SENDS = 3      # ثانیه تأخیر بین ارسال‌ها
+MAX_STORED_NEWS     = 500    # حداکثر اخبار در news.json
 
-    # کلودفلر
-    CF_ACCOUNT_ID = os.getenv("CF_ACCOUNT_ID", "")
-    CF_API_TOKEN  = os.getenv("CF_API_TOKEN", "")
-    D1_DB_ID      = os.getenv("D1_DATABASE_ID", "")
+# ── تنظیمات فیلتر ────────────────────────────────────────────
+SCORE_THRESHOLD_DEDICATED = 2   # امتیاز کمینه برای فیدهای اختصاصی
+SCORE_THRESHOLD_GENERAL   = 4   # امتیاز کمینه برای فیدهای عمومی
+TITLE_SCORE_WEIGHT        = 3   # وزن کلیدواژه در عنوان
+BODY_SCORE_WEIGHT         = 1   # وزن کلیدواژه در متن
 
-    # تنظیمات عمومی
-    CHANNEL_USERNAME = "-1004326201738"  # آیدی کانال تلگرام خود را اینجا بنویسید
-    MAX_NEWS_PER_RUN = 30  # حداکثر اخبار ارسالی در هر اجرا
-    DELAY_BETWEEN_SENDS = 3  # ثانیه تأخیر بین ارسال‌ها
+# ── آدرس‌های API ─────────────────────────────────────────────
+TELEGRAM_API_BASE = "https://api.telegram.org/bot"
+BALE_API_BASE     = "https://tapi.bale.ai/bot"
+
+# ── امضای ربات ───────────────────────────────────────────────
+BOT_SIGNATURE = "🌿 سامانه پایش اخبار محیط زیست ایران\n@iran_env_news"
