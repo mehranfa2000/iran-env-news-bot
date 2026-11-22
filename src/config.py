@@ -1,36 +1,44 @@
-# ============================================================
-#  src/config.py — تنظیمات مرکزی پروژه
-# ============================================================
-
 import os
 
-# ── توکن‌ها و شناسه‌ها (از GitHub Secrets) ──────────────────
-TELEGRAM_BOT_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN",  "")
+# ═══════════════════════════════════════════
+#  توکن‌ها و شناسه‌ها
+# ═══════════════════════════════════════════
+TELEGRAM_BOT_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID", "")
-BALE_BOT_TOKEN      = os.getenv("BALE_BOT_TOKEN",      "")
-BALE_CHANNEL_ID     = os.getenv("BALE_CHANNEL_ID",     "")
-GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY",       "")
+BALE_BOT_TOKEN      = os.getenv("BALE_BOT_TOKEN", "")
+BALE_CHANNEL_ID     = os.getenv("BALE_CHANNEL_ID", "")
+GEMINI_API_KEY      = os.getenv("GEMINI_API_KEY", "")
 
-# ── تنظیمات ارسال ────────────────────────────────────────────
-MAX_NEWS_PER_RUN    = 30
-DELAY_BETWEEN_SENDS = 3
-MAX_STORED_NEWS     = 500
+# ═══════════════════════════════════════════
+#  تنظیمات جمع‌آوری
+# ═══════════════════════════════════════════
+MAX_NEWS_PER_RUN    = 20    # حداکثر خبر جدید در هر اجرا
+MAX_STORED_NEWS     = 500   # حداکثر خبر در news.json
+DELAY_BETWEEN_SENDS = 3     # ثانیه بین هر ارسال
 
-# ── تنظیمات فیلتر ────────────────────────────────────────────
-SCORE_THRESHOLD_DEDICATED = 2
-SCORE_THRESHOLD_GENERAL   = 4
-TITLE_SCORE_WEIGHT        = 3
-BODY_SCORE_WEIGHT         = 1
+# ═══════════════════════════════════════════
+#  تنظیمات فیلتر (امتیازدهی)
+# ═══════════════════════════════════════════
+SCORE_THRESHOLD_DEDICATED = 2   # حداقل امتیاز فیدهای اختصاصی
+SCORE_THRESHOLD_GENERAL   = 4   # حداقل امتیاز فیدهای عمومی
+TITLE_SCORE_WEIGHT        = 3   # وزن کلمه کلیدی در عنوان
+BODY_SCORE_WEIGHT         = 1   # وزن کلمه کلیدی در متن
 
-# ── تنظیمات AI ────────────────────────────────────────────────
-AI_MODEL            = "gemini-3.8-flash"
-AI_ENABLED          = bool(GEMINI_API_KEY)
-AI_MAX_PER_RUN      = 30
-AI_TIMEOUT          = 30
+# ═══════════════════════════════════════════
+#  تنظیمات هوش مصنوعی Gemini
+#  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#  فقط اخبار بحرانی تحلیل می‌شوند
+#  حداکثر 2 خبر در هر اجرا (ساعتی)
+#  حداکثر 15 خبر در کل روز
+# ═══════════════════════════════════════════
+AI_ENABLED         = bool(GEMINI_API_KEY)
+AI_MODEL           = "gemini-2.0-flash"
+AI_MAX_PER_RUN     = 2    # حداکثر تحلیل در هر اجرا
+AI_MAX_PER_DAY     = 15   # حداکثر تحلیل در روز
+AI_TIMEOUT         = 25   # ثانیه timeout هر درخواست
+AI_RETRY_ATTEMPTS  = 2    # تعداد تلاش مجدد
 
-# ── آدرس‌های API ─────────────────────────────────────────────
-TELEGRAM_API_BASE = "https://api.telegram.org/bot"
-BALE_API_BASE     = "https://tapi.bale.ai/bot"
-
-# ── امضای ربات ───────────────────────────────────────────────
+# ═══════════════════════════════════════════
+#  امضای ربات
+# ═══════════════════════════════════════════
 BOT_SIGNATURE = "🌿 سامانه پایش اخبار محیط زیست ایران"
