@@ -1,49 +1,35 @@
-# ============================================================
-#  run.yml — اجرای خودکار هر ۱ ساعت
-#  نسخه: 2.0 | آذر ۱۴۰۵
-#  استانداردهای 2026: least privilege, timeout, pip cache
-# ============================================================
-
 name: 🌿 پایش اخبار محیط زیست
 
-# ── زمان‌بندی اجرا ────────────────────────────────────────
 on:
   schedule:
-    - cron: '30 * * * *'       # هر ساعت در دقیقه ۳۰
-  workflow_dispatch:            # اجرای دستی از GitHub
+    - cron: '30 * * * *'
+  workflow_dispatch:
 
-# ── حداقل دسترسی (استاندارد 2026) ─────────────────────────
 permissions:
-  contents: write               # فقط اجازه نوشتن فایل
+  contents: write
 
-# ── کار اصلی ──────────────────────────────────────────────
 jobs:
-  collect-and-send:
-    name: 📡 جمع‌آوری و ارسال اخبار
+  run:
+    name: 📡 جمع‌آوری و ارسال
     runs-on: ubuntu-latest
-    timeout-minutes: 15         # جلوگیری از hang شدن
+    timeout-minutes: 15
 
     steps:
-
-      # ── گام ۱: دانلود مخزن ─────────────────────────────
-      - name: 📥 دانلود مخزن
+      - name: 📥 دریافت مخزن
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1        # فقط آخرین commit (سریع‌تر)
+          fetch-depth: 1
 
-      # ── گام ۲: نصب پایتون ──────────────────────────────
-      - name: 🐍 نصب Python 3.12
+      - name: 🐍 Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'          # کش کردن کتابخانه‌ها (سریع‌تر)
+          cache: 'pip'
 
-      # ── گام ۳: نصب کتابخانه‌ها ─────────────────────────
       - name: 📦 نصب کتابخانه‌ها
         run: pip install -r requirements.txt
 
-      # ── گام ۴: اجرای ربات ──────────────────────────────
-      - name: 🌿 اجرای سامانه پایش
+      - name: 🌿 اجرای ربات
         env:
           TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
@@ -51,16 +37,15 @@ jobs:
           BALE_CHANNEL_ID:     ${{ secrets.BALE_CHANNEL_ID }}
         run: python main.py
 
-      # ── گام ۵: ذخیره news.json در مخزن ─────────────────
-      - name: 💾 ذخیره اخبار در مخزن
+      - name: 💾 ذخیره news.json
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/news.json
           if git diff --cached --quiet; then
-            echo "✅ تغییری وجود ندارد — نیازی به commit نیست"
+            echo "✅ تغییری نیست"
           else
-            git commit -m "📰 بروزرسانی اخبار — $(date -u '+%Y-%m-%d %H:%M') UTC"
+            git commit -m "📰 بروزرسانی — $(date -u '+%Y-%m-%d %H:%M') UTC"
             git push
-            echo "✅ news.json با موفقیت push شد"
+            echo "✅ push شد"
           fi
