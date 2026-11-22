@@ -1,0 +1,46 @@
+name: 🤖 تحلیل ۲۴ ساعته هوش مصنوعی
+
+on:
+  schedule:
+    - cron: '0 6 * * *'   # هر روز ساعت ۹:۳۰ صبح (UTC 6 = تهران 9:30)
+  workflow_dispatch:        # اجرای دستی از داشبورد GitHub
+
+concurrency:
+  group: daily-analysis
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: ⬇️ دریافت کدها
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 🐍 نصب Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: 📦 نصب کتابخانه‌ها
+        run: pip install -r requirements.txt
+
+      - name: 🤖 تحلیل ۲۴ ساعته
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python daily_analysis.py
+
+      - name: 💾 ذخیره تحلیل
+        run: |
+          git config --global user.name "Iran Env Bot"
+          git config --global user.email "bot@iran-env.ir"
+          git add data/daily_analysis.json
+          git diff --staged --quiet || git commit -m "🤖 تحلیل روزانه - $(date +'%Y-%m-%d %H:%M')"
+          git push
