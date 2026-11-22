@@ -1,95 +1,120 @@
-# ============================================================
-#  src/filter.py — فیلتر ۳ لایه + بررسی مرز کلمه
-#  رفع باگ: «دام» در «اقدامات» دیگر match نمی‌شود
-# ============================================================
-
 import re
-from src.keywords import ALL_KEYWORDS, BLACKLIST, SHORT_KEYWORDS, get_category
-from src.config   import (
+import logging
+from src.keywords import (
+    KEYWORDS, CATEGORIES, BLACKLIST,
+    CRITICAL_KEYWORDS, SHORT_KEYWORDS,
+)
+from src.config import (
     SCORE_THRESHOLD_DEDICATED,
     SCORE_THRESHOLD_GENERAL,
     TITLE_SCORE_WEIGHT,
     BODY_SCORE_WEIGHT,
 )
 
+logger = logging.getLogger(__name__)
+
+# فیدهای اختصاصی محیط‌زیست (آستانه امتیاز پایین‌تر)
+DEDICATED_FEEDS = {
+    "irna.ir/rss/tp/32",
+    "mehrnews.com/rss/tp/64",
+    "hamshahrionline.ir/rss/tp/584",
+    "khabaronline.ir/rss/tp/44",
+    "imna.ir/rss/tp/153",
+    "yjc.ir/fa/rss/5/74",
+    "ettelaat.com/rss/tp/65",
+    "iribnews.ir/fa/rss/7/39",
+    "iribnews.ir/fa/rss/6/8",
+    "salamatnews.com/rss/tp/11",
+}
+
+
+def _is_dedicated(url: str) -> bool:
+    """بررسی اینکه فید اختصاصی است یا عمومی"""
+    return any(feed in url for feed in DEDICATED_FEEDS)
+
 
 def _keyword_in_text(keyword: str, text: str) -> bool:
     """
-    بررسی وجود کلیدواژه در متن
-    برای کلیدواژه‌های کوتاه (≤۴ حرف): بررسی مرز کلمه
-    برای کلیدواژه‌های بلند: جستجوی ساده زیررشته‌ای
+    بررسی وجود کلمه کلیدی در متن.
+    برای کلمات کوتاه (≤4 کاراکتر): بررسی مرز کلمه
+    برای کلمات بلند: بررسی ساده زیررشته
     """
-    if not keyword or not text:
-        return False
-
-    kw_lower = keyword.lower()
-
     if keyword in SHORT_KEYWORDS:
-        # بررسی مرز کلمه: کلیدواژه باید به عنوان کلمه مستقل باشد
-        # از فاصله، نیم‌فاصله، ابتدا/انتهای متن، علائم نگارشی
-        pattern = r'(?:^|[\s\u200c\u200d.,;:!?،؛/\-(){}\[\]])'
-        pattern += re.escape(kw_lower)
-        pattern += r'(?:$|[\s\u200c\u200d.,;:!?،؛/\-(){}\[\]])'
+        # مرز کلمه برای فارسی: فاصله، ابتدا/انتهای رشته، نشانه‌گذاری
+        pattern = r'(?<![^\s،؛،.!?])' + re.escape(keyword) + r'(?![^\s،؛،.!?])'
         return bool(re.search(pattern, text))
-    else:
-        return kw_lower in text
+    return keyword in text
 
 
-def _score(article: dict) -> int:
-    """محاسبه امتیاز با بررسی مرز کلمه"""
-    title   = article.get("title",   "").lower()
-    summary = article.get("summary", "").lower()
-    score   = 0
-    for kw in ALL_KEYWORDS:
-        if _keyword_in_text(kw, title):
-            score += TITLE_SCORE_WEIGHT
-        if _keyword_in_text(kw, summary):
-            score += BODY_SCORE_WEIGHT
+def _has_blacklist(text: str) -> bool:
+    """آیا متن شامل موارد لیست سیاه است؟"""
+    return any(term in text for term in BLACKLIST)
+
+
+def _calc_score(title: str, body: str) -> int:
+    """محاسبه امتیاز کلمات کلیدی"""
+    score = 0
+    for kw in KEYWORDS:
+        in_title = _keyword_in_text(kw, title)
+        in_body  = _keyword_in_text(kw, body)
+        score += (TITLE_SCORE_WEIGHT if in_title else 0)
+        score += (BODY_SCORE_WEIGHT  if in_body  else 0)
     return score
 
 
-def _has_blacklist(article: dict) -> bool:
-    """آیا خبر شامل کلیدواژه سیاه‌برگ است؟"""
-    text = (article.get("title", "") + " " + article.get("summary", "")).lower()
-    return any(bl.lower() in text for bl in BLACKLIST)
+def get_category(title: str, body: str) -> str:
+    """تشخیص دسته‌بندی خبر"""
+    text = title + " " + body
+    best_cat   = "🏛️ سیاست‌ها، قوانین و سازمان محیط زیست"
+    best_score = 0
+    for cat, keywords in CATEGORIES.items():
+        s = sum(1 for kw in keywords if kw in text)
+        if s > best_score:
+            best_score = s
+            best_cat   = cat
+    return best_cat
 
 
-def _get_threshold(article: dict) -> int:
-    if article.get("dedicated", False):
-        return SCORE_THRESHOLD_DEDICATED
-    return SCORE_THRESHOLD_GENERAL
+def is_critical(title: str, body: str) -> bool:
+    """
+    آیا خبر بحرانی است و باید به AI فرستاده شود؟
+    معیار: داشتن حداقل یک کلمه بحرانی در عنوان یا بدنه
+    """
+    text = title + " " + body
+    return any(kw in text for kw in CRITICAL_KEYWORDS)
 
 
-def filter_news(articles: list) -> list:
-    """فیلتر ۳ لایه اخبار محیط‌زیستی"""
-    passed = []
+def filter_news(items: list[dict], feed_url: str = "") -> list[dict]:
+    """
+    فیلتر سه‌لایه:
+    1) بررسی لیست سیاه
+    2) محاسبه امتیاز کلمات کلیدی
+    3) اضافه کردن دسته‌بندی و پرچم بحرانی
+    """
+    dedicated = _is_dedicated(feed_url)
+    threshold = SCORE_THRESHOLD_DEDICATED if dedicated else SCORE_THRESHOLD_GENERAL
+    result    = []
 
-    for article in articles:
-        title   = article.get("title",   "").lower()
-        summary = article.get("summary", "").lower()
-        full    = title + " " + summary
+    for item in items:
+        title = item.get("title", "")
+        body  = item.get("summary", "") + " " + item.get("content", "")
 
-        # لایه ۱: حداقل یک کلیدواژه (با بررسی مرز)
-        has_keyword = any(_keyword_in_text(kw, full) for kw in ALL_KEYWORDS)
-        if not has_keyword:
+        # لایه ۱: لیست سیاه
+        if _has_blacklist(title) or _has_blacklist(body):
+            logger.debug(f"[blacklist] {title[:50]}")
             continue
 
-        # لایه ۲: امتیاز کافی
-        score     = _score(article)
-        threshold = _get_threshold(article)
+        # لایه ۲: امتیازدهی
+        score = _calc_score(title, body)
         if score < threshold:
+            logger.debug(f"[low-score={score}] {title[:50]}")
             continue
 
-        # لایه ۳: سیاه‌برگ
-        if _has_blacklist(article):
-            continue
+        # لایه ۳: دسته‌بندی و پرچم بحرانی
+        item["category"] = get_category(title, body)
+        item["score"]    = score
+        item["critical"] = is_critical(title, body)
+        result.append(item)
+        logger.info(f"[pass score={score} critical={item['critical']}] {title[:60]}")
 
-        # افزودن دسته‌بندی
-        cat_name, cat_emoji = get_category(full)
-        article["category"]       = cat_name
-        article["category_emoji"] = cat_emoji
-        article["score"]          = score
-
-        passed.append(article)
-
-    return passed
+    return result
