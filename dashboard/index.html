@@ -8,393 +8,685 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         :root {
-            --green-dark:  #1b5e20;
-            --green-mid:   #2e7d32;
-            --green-light: #4caf50;
-            --bg:          #f0f4f1;
+            --g1: #1b5e20;
+            --g2: #2e7d32;
+            --g3: #4caf50;
+            --g4: #e8f5e9;
+            --bg: #f0f4f1;
+            --card-shadow: 0 4px 20px rgba(0,0,0,.08);
         }
-        * { box-sizing: border-box; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             background: var(--bg);
-            font-family: Tahoma, 'Segoe UI', sans-serif;
+            font-family: Tahoma, 'Segoe UI', Arial, sans-serif;
             font-size: 14px;
-            margin: 0;
+            color: #222;
         }
+
         /* ===== SIDEBAR ===== */
         .sidebar {
-            background: linear-gradient(160deg, #1b5e20 0%, #2e7d32 60%, #388e3c 100%);
-            color: white;
+            background: linear-gradient(170deg, #1a3a1f 0%, #1b5e20 40%, #2e7d32 100%);
+            color: #fff;
             min-height: 100vh;
-            padding: 24px 12px;
+            padding: 28px 14px;
             position: sticky;
             top: 0;
             height: 100vh;
             overflow-y: auto;
+            display: flex;
+            flex-direction: column;
         }
-        .sidebar-logo { text-align: center; margin-bottom: 20px; }
-        .sidebar-logo .icon { font-size: 42px; }
-        .sidebar-logo h5 { font-size: 13px; margin: 8px 0 0; line-height: 1.6; }
+        .sb-logo { text-align:center; margin-bottom:24px; }
+        .sb-logo .ico { font-size:46px; filter: drop-shadow(0 2px 6px rgba(0,0,0,.3)); }
+        .sb-logo h5 {
+            font-size: 12.5px;
+            margin-top: 10px;
+            line-height: 1.8;
+            opacity: .92;
+        }
+        .sb-divider { border-color: rgba(255,255,255,.2); margin: 14px 0; }
         .sidebar .nav-link {
-            color: rgba(255,255,255,.8);
+            color: rgba(255,255,255,.75);
             border-radius: 10px;
             padding: 10px 14px;
             margin-bottom: 4px;
-            transition: .2s;
             font-size: 13px;
+            transition: .2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
-        .sidebar .nav-link:hover,
-        .sidebar .nav-link.active { background: rgba(255,255,255,.18); color: #fff; }
-        .sidebar-footer {
-            font-size: 11px;
-            opacity: .6;
-            margin-top: 30px;
+        .sidebar .nav-link:hover { background: rgba(255,255,255,.15); color:#fff; }
+        .sb-footer {
+            font-size: 10.5px;
+            opacity: .55;
             text-align: center;
-            line-height: 1.8;
+            line-height: 1.9;
+            margin-top: auto;
+            padding-top: 20px;
         }
+        .sb-badge {
+            background: rgba(255,255,255,.18);
+            border-radius: 20px;
+            font-size: 10px;
+            padding: 1px 8px;
+            margin-right: auto;
+        }
+
         /* ===== TOPBAR ===== */
         .topbar {
-            background: white;
-            border-radius: 14px;
-            padding: 14px 20px;
-            margin-bottom: 22px;
+            background: #fff;
+            border-radius: 16px;
+            padding: 14px 22px;
+            margin-bottom: 24px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            box-shadow: var(--card-shadow);
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 12px;
         }
-        .topbar-title { font-weight: bold; font-size: 15px; color: #1b5e20; }
-        /* ===== CARDS ===== */
+        .topbar-left h6 { font-size: 15px; color: var(--g1); font-weight: bold; margin:0; }
+        .topbar-left p  { font-size: 11px; color: #999; margin:2px 0 0; }
+
+        /* ===== STAT CARDS ===== */
         .card {
             border: none;
             border-radius: 16px;
-            box-shadow: 0 4px 18px rgba(0,0,0,.07);
-            margin-bottom: 22px;
+            box-shadow: var(--card-shadow);
+            margin-bottom: 24px;
+            background: #fff;
         }
         .stat-card {
+            padding: 22px 14px;
+            text-align: center;
             transition: transform .3s, box-shadow .3s;
             cursor: default;
-            padding: 20px 10px;
-            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .stat-card::before {
+            content: "";
+            position: absolute;
+            top: -20px; left: -20px;
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: var(--g4);
+            opacity: .6;
         }
         .stat-card:hover {
             transform: translateY(-6px);
-            box-shadow: 0 8px 25px rgba(46,125,50,.2);
+            box-shadow: 0 10px 30px rgba(46,125,50,.18);
         }
-        .stat-number {
-            font-size: 2.4rem;
-            font-weight: 700;
-            color: var(--green-mid);
-            line-height: 1.2;
+        .stat-icon  { font-size: 26px; margin-bottom: 6px; }
+        .stat-num   { font-size: 2.2rem; font-weight: 800; color: var(--g2); line-height: 1.1; }
+        .stat-label { font-size: 11.5px; color: #888; margin-top: 5px; }
+
+        /* ===== CHART ===== */
+        .chart-wrap { position: relative; height: 270px; }
+        .chart-title {
+            font-size: 13.5px;
+            font-weight: bold;
+            color: var(--g1);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
-        .stat-label { font-size: 12px; color: #888; margin-top: 4px; }
-        /* ===== NEWS LIST ===== */
+
+        /* ===== NEWS ITEMS ===== */
         .news-item {
-            border-right: 4px solid var(--green-light);
-            padding: 12px 14px;
-            margin-bottom: 14px;
+            border-right: 4px solid var(--g3);
+            padding: 13px 15px;
+            margin-bottom: 12px;
             background: #fff;
-            border-radius: 10px;
-            box-shadow: 0 2px 8px rgba(0,0,0,.05);
-            transition: .2s;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.05);
+            transition: .25s;
         }
-        .news-item:hover { box-shadow: 0 4px 16px rgba(46,125,50,.15); }
-        .news-title { font-size: 13.5px; font-weight: bold; line-height: 1.7; color: #1a1a1a; }
-        .news-meta { font-size: 11px; color: #999; margin-top: 6px; }
-        .source-badge {
-            display: inline-block;
+        .news-item:hover {
+            box-shadow: 0 6px 20px rgba(46,125,50,.14);
+            transform: translateX(-2px);
+        }
+        .news-title {
+            font-size: 13.5px;
+            font-weight: bold;
+            line-height: 1.75;
+            color: #111;
+        }
+        .news-meta {
+            font-size: 11.5px;
+            color: #aaa;
+            margin-top: 7px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .meta-pill {
+            background: var(--g4);
+            color: var(--g2);
+            border-radius: 20px;
             padding: 2px 10px;
+            font-size: 11px;
+        }
+
+        /* ===== SOURCE BADGES ===== */
+        .src-badge {
+            display: inline-block;
+            padding: 3px 11px;
             border-radius: 20px;
             font-size: 11px;
             font-weight: bold;
+            white-space: nowrap;
         }
-        .src-IRNA        { background:#fff3e0; color:#e65100; }
-        .src-Mehr        { background:#fce4ec; color:#880e4f; }
-        .src-Hamshahri   { background:#e8f5e9; color:#2e7d32; }
-        .src-KhabarOnline{ background:#e3f2fd; color:#1565c0; }
-        .src-IMNA        { background:#ede7f6; color:#4527a0; }
-        .src-YJC         { background:#e0f2f1; color:#00695c; }
-        .src-Ettelaat    { background:#fafafa; color:#333; border:1px solid #ddd; }
-        .src-IRIBNews    { background:#fff9c4; color:#f57f17; }
-        .src-SalamatNews { background:#e8f5e9; color:#1b5e20; }
-        .src-ISNA        { background:#e3f2fd; color:#0d47a1; }
-        /* ===== SEARCH ===== */
+        .src-IRNA          { background:#fff3e0; color:#e65100; }
+        .src-Mehr          { background:#fce4ec; color:#880e4f; }
+        .src-Hamshahri     { background:#e8f5e9; color:#2e7d32; }
+        .src-KhabarOnline  { background:#e3f2fd; color:#1565c0; }
+        .src-IMNA          { background:#ede7f6; color:#4527a0; }
+        .src-YJC           { background:#e0f2f1; color:#00695c; }
+        .src-Ettelaat      { background:#f9fbe7; color:#558b2f; border:1px solid #dce775; }
+        .src-IRIBNews      { background:#fff9c4; color:#f57f17; }
+        .src-IRIBNewsEnergy{ background:#fff8e1; color:#ff8f00; }
+        .src-SalamatNews   { background:#f3e5f5; color:#6a1b9a; }
+        .src-ISNA          { background:#e3f2fd; color:#0d47a1; }
+
+        /* ===== SEARCH & FILTER ===== */
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
         #searchInput {
-            border-radius: 20px;
+            border-radius: 25px;
             border: 1.5px solid #c8e6c9;
-            padding: 7px 18px;
+            padding: 8px 20px;
             font-size: 13px;
-            width: 220px;
+            width: 240px;
             outline: none;
             transition: .2s;
+            background: #f9fdf9;
         }
-        #searchInput:focus { border-color: var(--green-light); }
+        #searchInput:focus { border-color: var(--g3); background: #fff; }
+        .filter-btn {
+            border-radius: 20px;
+            font-size: 12px;
+            padding: 6px 14px;
+            border: 1.5px solid #c8e6c9;
+            background: #fff;
+            color: var(--g2);
+            cursor: pointer;
+            transition: .2s;
+        }
+        .filter-btn:hover,
+        .filter-btn.active { background: var(--g2); color: #fff; border-color: var(--g2); }
+
         /* ===== PAGINATION ===== */
-        .pagination .page-link { color: var(--green-mid); }
+        .pagination .page-link { color: var(--g2); border-radius: 8px; margin: 0 2px; }
         .pagination .page-item.active .page-link {
-            background: var(--green-mid);
-            border-color: var(--green-mid);
+            background: var(--g2);
+            border-color: var(--g2);
         }
+
+        /* ===== SECTION HEADER ===== */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: bold;
+            color: var(--g1);
+        }
+        .news-count-badge {
+            background: var(--g4);
+            color: var(--g2);
+            border-radius: 20px;
+            padding: 3px 12px;
+            font-size: 11px;
+        }
+
+        /* ===== EMPTY / ERROR ===== */
+        .empty-state { text-align:center; padding: 50px 20px; color: #bbb; }
+        .empty-state .big-icon { font-size: 50px; margin-bottom: 10px; }
+
         /* ===== LOADING ===== */
-        .loading { text-align:center; padding:40px; color:#aaa; }
-        .spinner-border { color: var(--green-light); }
-        /* ===== CHART WRAPPER ===== */
-        .chart-wrapper { position:relative; height:260px; }
+        .loading-wrap { text-align:center; padding: 40px; color: #bbb; }
+        .spinner-border { color: var(--g3) !important; }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #a5d6a7; border-radius: 3px; }
+
+        /* ===== TODAY BANNER ===== */
+        .today-banner {
+            background: linear-gradient(135deg, var(--g1), var(--g2));
+            color: white;
+            border-radius: 14px;
+            padding: 16px 22px;
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(27,94,32,.3);
+        }
+        .today-banner .date-fa { font-size: 15px; font-weight: bold; }
+        .today-banner .time-fa { font-size: 12px; opacity: .8; margin-top: 3px; }
+        .today-banner .live-dot {
+            width: 10px; height: 10px;
+            background: #69f0ae;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 6px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%,100% { opacity: 1; transform: scale(1); }
+            50%      { opacity: .4; transform: scale(1.4); }
+        }
     </style>
 </head>
 <body>
 <div class="container-fluid p-0">
 <div class="row g-0">
 
-    <!-- ===== SIDEBAR ===== -->
-    <div class="col-md-2 sidebar d-none d-md-flex flex-column">
-        <div class="sidebar-logo">
-            <div class="icon">🌿</div>
-            <h5>سامانه ملی پایش<br>اخبار محیط زیست ایران</h5>
+<!-- ===== SIDEBAR ===== -->
+<div class="col-md-2 sidebar d-none d-md-flex flex-column">
+    <div class="sb-logo">
+        <div class="ico">🌿</div>
+        <h5>سامانه ملی پایش<br>اخبار محیط زیست<br>جمهوری اسلامی ایران</h5>
+    </div>
+    <hr class="sb-divider">
+    <ul class="nav flex-column">
+        <li><a class="nav-link" href="#topSection">📊 آمار کلی</a></li>
+        <li><a class="nav-link" href="#charts">📈 نمودارها</a></li>
+        <li><a class="nav-link" href="#newsSection">📰 اخبار</a></li>
+    </ul>
+    <div class="sb-footer">
+        <div>آخرین بروزرسانی:</div>
+        <div id="lastUpdate" style="color:#a5d6a7; font-size:11px">در حال بارگذاری...</div>
+        <div style="margin-top:10px; opacity:.5">سامانه پایش اخبار<br>محیط زیست ایران</div>
+    </div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="col-md-10 p-4">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div class="topbar-left">
+            <h6>🌱 سامانه ملی پایش اخبار محیط زیست ایران</h6>
+            <p id="topbarDate">در حال بارگذاری تاریخ...</p>
         </div>
-        <hr style="border-color:rgba(255,255,255,.25)">
-        <ul class="nav flex-column flex-grow-1">
-            <li><a class="nav-link active" href="#stats">📊 آمار کلی</a></li>
-            <li><a class="nav-link" href="#charts">📈 نمودارها</a></li>
-            <li><a class="nav-link" href="#newsSection">📰 اخبار</a></li>
-        </ul>
-        <div class="sidebar-footer">
-            آخرین بروزرسانی:<br>
-            <span id="lastUpdate">در حال بارگذاری...</span>
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <input type="text" id="searchInput" placeholder="🔍 جستجو در اخبار...">
+            <button class="btn btn-sm btn-success px-3" onclick="loadDashboard()" style="border-radius:20px">
+                🔄 بروزرسانی
+            </button>
         </div>
     </div>
 
-    <!-- ===== MAIN ===== -->
-    <div class="col-md-10 p-4">
-
-        <!-- TOPBAR -->
-        <div class="topbar">
-            <div class="topbar-title">🌱 سامانه ملی پایش اخبار محیط زیست ایران</div>
-            <div class="d-flex gap-2 align-items-center">
-                <input type="text" id="searchInput" placeholder="🔍 جستجو در اخبار..." oninput="onSearch()">
-                <button class="btn btn-sm btn-outline-success" onclick="loadDashboard()">🔄 بروزرسانی</button>
+    <!-- TODAY BANNER -->
+    <div class="today-banner" id="topSection">
+        <div>
+            <div class="date-fa" id="bannerDate">📅 در حال بارگذاری...</div>
+            <div class="time-fa" id="bannerTime"></div>
+        </div>
+        <div style="text-align:left">
+            <span class="live-dot"></span>
+            <span style="font-size:12px; opacity:.85">سیستم فعال است</span>
+            <div style="font-size:11px; opacity:.65; margin-top:4px">
+                بروزرسانی هر ۱ ساعت | ۱۱ منبع خبری
             </div>
         </div>
+    </div>
 
-        <!-- STATS -->
-        <div class="row mb-2" id="stats">
-            <div class="col-6 col-md-3">
-                <div class="card stat-card">
-                    <div class="stat-number" id="statTotal">—</div>
-                    <div class="stat-label">کل اخبار ارسالی</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="card stat-card">
-                    <div class="stat-number" id="statToday">—</div>
-                    <div class="stat-label">امروز</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="card stat-card">
-                    <div class="stat-number" id="statTopSource" style="font-size:1.1rem;padding-top:8px">—</div>
-                    <div class="stat-label">فعال‌ترین منبع</div>
-                </div>
-            </div>
-            <div class="col-6 col-md-3">
-                <div class="card stat-card">
-                    <div class="stat-number" id="statTopCat" style="font-size:.9rem;padding-top:12px">—</div>
-                    <div class="stat-label">پربازترین دسته</div>
-                </div>
+    <!-- STAT CARDS -->
+    <div class="row mb-2">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-icon">📰</div>
+                <div class="stat-num" id="statTotal">—</div>
+                <div class="stat-label">کل اخبار</div>
             </div>
         </div>
-
-        <!-- CHARTS -->
-        <div class="row" id="charts">
-            <div class="col-md-5">
-                <div class="card p-4">
-                    <h6 class="mb-3">🗂️ توزیع دسته‌بندی اخبار</h6>
-                    <div class="chart-wrapper">
-                        <canvas id="categoryChart"></canvas>
-                    </div>
-                </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-icon">📆</div>
+                <div class="stat-num" id="statToday">—</div>
+                <div class="stat-label">اخبار امروز</div>
             </div>
-            <div class="col-md-7">
-                <div class="card p-4">
-                    <h6 class="mb-3">📡 توزیع منابع خبری</h6>
-                    <div class="chart-wrapper">
-                        <canvas id="sourceChart"></canvas>
-                    </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-icon">🗞️</div>
+                <div class="stat-num" id="statTopSource" style="font-size:1rem;padding-top:6px">—</div>
+                <div class="stat-label">فعال‌ترین منبع</div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card">
+                <div class="stat-icon">🏆</div>
+                <div class="stat-num" id="statTopCat" style="font-size:.85rem;padding-top:8px">—</div>
+                <div class="stat-label">پربازترین دسته</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="row" id="charts">
+        <div class="col-md-5">
+            <div class="card p-4">
+                <div class="chart-title">🗂️ توزیع دسته‌بندی اخبار</div>
+                <div class="chart-wrap">
+                    <canvas id="categoryChart"></canvas>
                 </div>
             </div>
         </div>
-
-        <!-- NEWS -->
-        <div class="card p-4" id="newsSection">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h6 class="mb-0">📰 آخرین اخبار ارسال شده</h6>
-                <span id="newsCount" class="text-muted" style="font-size:12px"></span>
-            </div>
-            <div id="newsContainer">
-                <div class="loading">
-                    <div class="spinner-border mb-2" role="status"></div>
-                    <div>در حال بارگذاری اخبار...</div>
+        <div class="col-md-7">
+            <div class="card p-4">
+                <div class="chart-title">📡 توزیع منابع خبری</div>
+                <div class="chart-wrap">
+                    <canvas id="sourceChart"></canvas>
                 </div>
             </div>
-            <!-- PAGINATION -->
-            <nav id="paginationWrapper" class="mt-3 d-none">
-                <ul class="pagination justify-content-center" id="pagination"></ul>
-            </nav>
+        </div>
+    </div>
+
+    <!-- NEWS SECTION -->
+    <div class="card p-4" id="newsSection">
+        <div class="section-header">
+            <div class="section-title">📰 آخرین اخبار ارسال شده به کانال‌ها</div>
+            <span class="news-count-badge" id="newsCountBadge">در حال بارگذاری...</span>
         </div>
 
-    </div><!-- /main -->
+        <!-- فیلتر منابع -->
+        <div class="search-bar" id="sourceFilters">
+            <button class="filter-btn active" onclick="filterBySource('all', this)">همه</button>
+        </div>
+
+        <div id="newsContainer">
+            <div class="loading-wrap">
+                <div class="spinner-border mb-3" role="status" style="width:2.5rem;height:2.5rem"></div>
+                <div>در حال بارگذاری اخبار...</div>
+            </div>
+        </div>
+
+        <nav id="paginationWrapper" class="mt-3 d-none">
+            <ul class="pagination justify-content-center" id="pagination"></ul>
+        </nav>
+    </div>
+
+</div><!-- /main -->
 </div>
 </div>
 
 <script>
 // ============================================================
-// تنظیمات
+// ⚠️ یوزرنیم گیت‌هاب خود را اینجا وارد کنید
 // ============================================================
-const ITEMS_PER_PAGE = 20;
-let currentPage   = 1;
-let totalItems    = 0;
-let searchQuery   = "";
-let catChartInst  = null;
-let srcChartInst  = null;
+const GITHUB_USER = "mehranfa2000";
+const GITHUB_REPO = "iran-env-news-bot";
+const JSON_URL    = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/main/data/news.json`;
+
+const PER_PAGE = 20;
+let allNews      = [];
+let filteredNews = [];
+let currentPage  = 1;
+let activeSource = "all";
+let catChart     = null;
+let srcChart     = null;
 
 // ============================================================
-// بارگذاری داشبورد
+// تاریخ شمسی (جاوااسکریپت)
 // ============================================================
-async function loadDashboard() {
-    await Promise.all([loadStats(), loadNews(1, "")]);
+function toShamsi(dateStr) {
+    if (!dateStr) return "—";
+    try {
+        // اگر قبلاً شمسی است (مثلاً 1405/09/01)
+        if (/^\d{4}\/\d{2}\/\d{2}/.test(dateStr)) return dateStr;
+        return dateStr; // برگشت همان رشته ذخیره شده از پایتون
+    } catch(e) { return dateStr; }
+}
+
+function getTodayShamsi() {
+    // تاریخ شمسی امروز با Intl
+    try {
+        const d = new Date();
+        return d.toLocaleDateString("fa-IR-u-ca-persian", {
+            year:"numeric", month:"long", day:"numeric", weekday:"long"
+        });
+    } catch(e) { return new Date().toLocaleDateString("fa-IR"); }
+}
+
+function getTimeShamsi() {
+    return new Date().toLocaleTimeString("fa-IR");
 }
 
 // ============================================================
-// آمار و نمودارها
+// بارگذاری اصلی
 // ============================================================
-async function loadStats() {
+async function loadDashboard() {
+    document.getElementById("newsContainer").innerHTML = `
+        <div class="loading-wrap">
+            <div class="spinner-border mb-3" role="status" style="width:2.5rem;height:2.5rem"></div>
+            <div>در حال بارگذاری اخبار از سرور...</div>
+        </div>`;
+
+    // بروزرسانی تاریخ
+    const todayFa = getTodayShamsi();
+    document.getElementById("bannerDate").innerText = "📅 " + todayFa;
+    document.getElementById("bannerTime").innerText = "⏰ " + getTimeShamsi();
+    document.getElementById("topbarDate").innerText = todayFa;
+
     try {
-        const res  = await fetch("/api/stats");
-        const data = await res.json();
+        const res = await fetch(JSON_URL + "?t=" + Date.now());
+        if (!res.ok) throw new Error(`خطای HTTP ${res.status}`);
+        allNews = await res.json();
 
-        document.getElementById("statTotal").innerText = data.total ?? 0;
-        document.getElementById("statToday").innerText = data.today ?? 0;
+        if (!Array.isArray(allNews)) throw new Error("فرمت فایل JSON نادرست است");
 
-        const sources = data.sources || [];
-        const cats    = data.categories || [];
+        filteredNews = [...allNews];
+        activeSource = "all";
 
-        if (sources.length) {
-            document.getElementById("statTopSource").innerText = sources[0].source_fa || "—";
-        }
-        if (cats.length) {
-            const top = cats[0];
-            document.getElementById("statTopCat").innerText =
-                (top.emoji || "") + " " + (top.category_fa || top.category || "—");
-        }
+        renderStats();
+        renderCharts();
+        buildSourceFilters();
+        renderNews(1);
 
-        drawCategoryChart(cats);
-        drawSourceChart(sources);
+        document.getElementById("lastUpdate").innerText = getTimeShamsi();
 
-        document.getElementById("lastUpdate").innerText =
-            new Date().toLocaleString("fa-IR");
-
-    } catch (e) {
-        console.error("خطا در بارگذاری آمار:", e);
+    } catch(e) {
+        console.error(e);
+        document.getElementById("newsContainer").innerHTML = `
+            <div class="empty-state">
+                <div class="big-icon">⚠️</div>
+                <p class="text-danger">${e.message}</p>
+                <small class="text-muted">
+                    احتمالاً فایل <code>data/news.json</code> هنوز در گیت‌هاب ساخته نشده.<br>
+                    یک بار <b>Run workflow</b> را در گیت‌هاب اجرا کنید.
+                </small>
+            </div>`;
     }
 }
 
-function drawCategoryChart(cats) {
-    const labels = cats.map(c => (c.emoji || "") + " " + (c.category_fa || c.category || ""));
-    const counts = cats.map(c => c.count);
-    const colors = ["#66bb6a","#42a5f5","#ffa726","#ef5350","#ab47bc","#8d6e63","#78909c","#26c6da"];
+// ============================================================
+// آمار
+// ============================================================
+function renderStats() {
+    document.getElementById("statTotal").innerText = allNews.length;
 
-    if (catChartInst) catChartInst.destroy();
-    catChartInst = new Chart(document.getElementById("categoryChart"), {
-        type: "doughnut",
-        data: { labels, datasets: [{ data: counts, backgroundColor: colors, borderWidth: 2 }] },
-        options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 12 } } },
-            cutout: "55%"
-        }
-    });
+    const todayFa = new Date().toLocaleDateString("fa-IR");
+    const todayCount = allNews.filter(n => {
+        if (!n.timestamp && !n.date_shamsi) return false;
+        const d = n.date_shamsi || n.timestamp || "";
+        return d.startsWith(new Date().toLocaleDateString("fa-IR").slice(0,10));
+    }).length;
+    document.getElementById("statToday").innerText = todayCount;
+
+    const srcMap = {};
+    allNews.forEach(n => { const s = n.source_fa||n.source||""; srcMap[s]=(srcMap[s]||0)+1; });
+    const topSrc = Object.entries(srcMap).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById("statTopSource").innerText = topSrc ? topSrc[0] : "—";
+
+    const catMap = {};
+    allNews.forEach(n => { const c = n.category_fa||n.category||""; catMap[c]=(catMap[c]||0)+1; });
+    const topCat = Object.entries(catMap).sort((a,b)=>b[1]-a[1])[0];
+    document.getElementById("statTopCat").innerText = topCat
+        ? (allNews.find(x=>(x.category_fa||x.category)===topCat[0])?.emoji||"") + " " + topCat[0]
+        : "—";
 }
 
-function drawSourceChart(sources) {
-    const labels = sources.map(s => s.source_fa);
-    const counts = sources.map(s => s.count);
-    const colors = ["#66bb6a","#42a5f5","#ffa726","#ef5350","#ab47bc","#8d6e63","#78909c","#26c6da","#d4e157","#ff7043"];
+// ============================================================
+// نمودارها
+// ============================================================
+const COLORS = ["#43a047","#1e88e5","#fb8c00","#e53935","#8e24aa","#6d4c41","#00897b","#039be5","#c0ca33","#f4511e"];
 
-    if (srcChartInst) srcChartInst.destroy();
-    srcChartInst = new Chart(document.getElementById("sourceChart"), {
+function renderCharts() {
+    // نمودار دسته‌بندی
+    const catMap = {};
+    allNews.forEach(n => {
+        const k = (n.emoji||"🌱")+" "+(n.category_fa||n.category||"سایر");
+        catMap[k] = (catMap[k]||0) + 1;
+    });
+    if (catChart) catChart.destroy();
+    catChart = new Chart(document.getElementById("categoryChart"), {
+        type: "doughnut",
+        data: {
+            labels: Object.keys(catMap),
+            datasets: [{ data: Object.values(catMap), backgroundColor: COLORS, borderWidth: 2, hoverOffset: 8 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+                legend: { position:"bottom", labels: { font:{size:10}, boxWidth:12, padding:8 } },
+                tooltip: { rtl: true }
+            },
+            cutout: "58%"
+        }
+    });
+
+    // نمودار منابع
+    const srcMap = {};
+    allNews.forEach(n => { const s = n.source_fa||n.source||""; srcMap[s]=(srcMap[s]||0)+1; });
+    const srcSorted = Object.entries(srcMap).sort((a,b)=>b[1]-a[1]);
+
+    if (srcChart) srcChart.destroy();
+    srcChart = new Chart(document.getElementById("sourceChart"), {
         type: "bar",
         data: {
-            labels,
+            labels: srcSorted.map(x=>x[0]),
             datasets: [{
                 label: "تعداد اخبار",
-                data:  counts,
-                backgroundColor: colors,
-                borderRadius: 8
+                data:  srcSorted.map(x=>x[1]),
+                backgroundColor: COLORS,
+                borderRadius: 8,
+                borderSkipped: false
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            plugins: { legend:{display:false} },
+            scales: {
+                y: { beginAtZero:true, ticks:{stepSize:1}, grid:{color:"#f0f0f0"} },
+                x: { grid:{display:false} }
+            }
         }
     });
+}
+
+// ============================================================
+// دکمه‌های فیلتر منبع
+// ============================================================
+function buildSourceFilters() {
+    const srcMap = {};
+    allNews.forEach(n => { const s = n.source_fa||n.source||""; srcMap[s]=(srcMap[s]||0)+1; });
+
+    const container = document.getElementById("sourceFilters");
+    container.innerHTML = `<button class="filter-btn active" onclick="filterBySource('all',this)">همه (${allNews.length})</button>`;
+
+    Object.entries(srcMap).sort((a,b)=>b[1]-a[1]).forEach(([src, cnt]) => {
+        const btn = document.createElement("button");
+        btn.className = "filter-btn";
+        btn.textContent = `${src} (${cnt})`;
+        btn.onclick = function() { filterBySource(src, this); };
+        container.appendChild(btn);
+    });
+}
+
+function filterBySource(src, btn) {
+    activeSource = src;
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    const q = document.getElementById("searchInput").value.trim().toLowerCase();
+    applyFilters(q, src);
 }
 
 // ============================================================
 // لیست اخبار
 // ============================================================
-async function loadNews(page, q) {
-    currentPage  = page;
-    searchQuery  = q;
+function renderNews(page) {
+    currentPage = page;
+    const total = filteredNews.length;
+    const start = (page-1) * PER_PAGE;
+    const end   = Math.min(start + PER_PAGE, total);
+    const slice = filteredNews.slice(start, end);
+
+    document.getElementById("newsCountBadge").innerText =
+        total > 0 ? `${total} خبر یافت شد` : "خبری یافت نشد";
+
     const container = document.getElementById("newsContainer");
-    container.innerHTML = `<div class="loading"><div class="spinner-border mb-2" role="status"></div><div>در حال بارگذاری...</div></div>`;
 
-    try {
-        const url = `/api/news?page=${page}&limit=${ITEMS_PER_PAGE}&q=${encodeURIComponent(q)}`;
-        const res  = await fetch(url);
-        const data = await res.json();
-
-        totalItems = data.total || 0;
-        const news = data.news || [];
-
-        document.getElementById("newsCount").innerText =
-            `(نمایش ${((page-1)*ITEMS_PER_PAGE)+1}–${Math.min(page*ITEMS_PER_PAGE, totalItems)} از ${totalItems} خبر)`;
-
-        if (!news.length) {
-            container.innerHTML = `<div class="loading">📭 هیچ خبری یافت نشد.</div>`;
-            document.getElementById("paginationWrapper").classList.add("d-none");
-            return;
-        }
-
-        container.innerHTML = "";
-        news.forEach(n => container.appendChild(buildNewsCard(n)));
-        buildPagination(page, totalItems);
-
-    } catch (e) {
-        container.innerHTML = `<div class="text-danger text-center p-3">⚠️ خطا در بارگذاری اخبار: ${e.message}</div>`;
+    if (!slice.length) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="big-icon">📭</div>
+                <p>هیچ خبری با این فیلتر یافت نشد.</p>
+            </div>`;
+        document.getElementById("paginationWrapper").classList.add("d-none");
+        return;
     }
+
+    container.innerHTML = "";
+    slice.forEach(n => container.appendChild(buildCard(n)));
+    buildPagination(page, total);
+    window.scrollTo({top: document.getElementById("newsSection").offsetTop - 20, behavior:"smooth"});
 }
 
-function buildNewsCard(n) {
-    const div  = document.createElement("div");
+function buildCard(n) {
+    const div = document.createElement("div");
     div.className = "news-item";
-    const date = n.timestamp ? new Date(n.timestamp).toLocaleString("fa-IR") : "—";
-    const srcClass = "src-" + (n.source || "").replace(/[^a-zA-Z]/g, "");
+
+    const srcKey   = (n.source || "").replace(/[^a-zA-Z]/g,"");
+    const timeShow = n.timestamp_shamsi || n.pub_shamsi || n.timestamp || "—";
+    const catShow  = (n.emoji||"🌱") + " " + (n.category_fa || n.category || "");
+
     div.innerHTML = `
-        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap">
-            <div class="news-title flex-grow-1">${n.emoji || "🌱"} ${n.title || ""}</div>
-            <span class="source-badge ${srcClass}">${n.source_fa || n.source || ""}</span>
+        <div class="d-flex justify-content-between align-items-start gap-2 flex-wrap mb-2">
+            <div class="news-title flex-grow-1">${n.title || ""}</div>
+            <span class="src-badge src-${srcKey}">${n.source_fa || n.source || ""}</span>
         </div>
-        <div class="news-meta d-flex gap-3 flex-wrap mt-1">
-            <span>🗂️ ${n.category_fa || n.category || ""}</span>
-            <span>🕐 ${date}</span>
-            <span>⭐ امتیاز: ${n.score || 0}</span>
-            <a href="${n.link || "#"}" target="_blank" class="btn btn-sm btn-outline-success py-0 ms-auto">
-                مشاهده خبر 🔗
+        <div class="news-meta">
+            <span class="meta-pill">${catShow}</span>
+            <span>📅 ${timeShow}</span>
+            ${n.score ? `<span>⭐ امتیاز: ${n.score}</span>` : ""}
+            <a href="${n.link||"#"}" target="_blank"
+               class="btn btn-sm btn-outline-success py-0 px-3 ms-auto"
+               style="border-radius:20px; font-size:11px">
+               مشاهده خبر 🔗
             </a>
-        </div>
-    `;
+        </div>`;
     return div;
 }
 
@@ -402,46 +694,61 @@ function buildNewsCard(n) {
 // صفحه‌بندی
 // ============================================================
 function buildPagination(current, total) {
-    const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
-    const wrapper    = document.getElementById("paginationWrapper");
-    const ul         = document.getElementById("pagination");
+    const pages   = Math.ceil(total / PER_PAGE);
+    const wrapper = document.getElementById("paginationWrapper");
+    const ul      = document.getElementById("pagination");
 
-    if (totalPages <= 1) { wrapper.classList.add("d-none"); return; }
+    if (pages <= 1) { wrapper.classList.add("d-none"); return; }
     wrapper.classList.remove("d-none");
     ul.innerHTML = "";
 
-    const makeItem = (label, page, disabled = false, active = false) => {
+    const item = (label, p, dis, act) => {
         const li = document.createElement("li");
-        li.className = `page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}`;
+        li.className = `page-item ${dis?"disabled":""} ${act?"active":""}`;
         li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
-        if (!disabled && !active) li.onclick = (e) => { e.preventDefault(); loadNews(page, searchQuery); };
+        if (!dis && !act) li.onclick = e => { e.preventDefault(); renderNews(p); };
         return li;
     };
 
-    ul.appendChild(makeItem("«", current - 1, current === 1));
-
-    const start = Math.max(1, current - 2);
-    const end   = Math.min(totalPages, current + 2);
-    for (let p = start; p <= end; p++) ul.appendChild(makeItem(p, p, false, p === current));
-
-    ul.appendChild(makeItem("»", current + 1, current === totalPages));
+    ul.appendChild(item("«", current-1, current===1, false));
+    const s = Math.max(1, current-2), e = Math.min(pages, current+2);
+    for (let p=s; p<=e; p++) ul.appendChild(item(p, p, false, p===current));
+    ul.appendChild(item("»", current+1, current===pages, false));
 }
 
 // ============================================================
-// جستجو
+// جستجو و فیلتر
 // ============================================================
+function applyFilters(q, src) {
+    filteredNews = allNews.filter(n => {
+        const matchSrc = src === "all" || (n.source_fa||n.source) === src;
+        const matchQ   = !q ||
+            (n.title||"").toLowerCase().includes(q) ||
+            (n.source_fa||"").toLowerCase().includes(q) ||
+            (n.category_fa||"").toLowerCase().includes(q);
+        return matchSrc && matchQ;
+    });
+    renderNews(1);
+}
+
 let searchTimer;
-function onSearch() {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-        const q = document.getElementById("searchInput").value.trim();
-        loadNews(1, q);
-    }, 400);
-}
+document.addEventListener("DOMContentLoaded", () => {
+    document.getElementById("searchInput").addEventListener("input", function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(() => {
+            applyFilters(this.value.trim().toLowerCase(), activeSource);
+        }, 400);
+    });
+});
 
 // ============================================================
-// شروع
+// ساعت زنده
 // ============================================================
+setInterval(() => {
+    document.getElementById("bannerTime").innerText = "⏰ " + getTimeShamsi();
+}, 60000);
+
+// شروع
 loadDashboard();
 </script>
 </body>
