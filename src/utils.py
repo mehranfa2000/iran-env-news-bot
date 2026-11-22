@@ -1,69 +1,75 @@
 # ============================================================
-# ابزارهای کمکی - تبدیل تاریخ به شمسی
+#  src/utils.py — ابزارهای کمکی (تاریخ شمسی و غیره)
 # ============================================================
 
-import jdatetime
 from datetime import datetime, timezone
+import jdatetime
 
-def to_shamsi(dt=None, fmt="%Y/%m/%d %H:%M"):
+
+def gregorian_to_shamsi(dt: datetime | None = None) -> str:
     """
-    تبدیل تاریخ میلادی به شمسی
-    ورودی: datetime object یا None (برای زمان الان)
-    خروجی: رشته تاریخ شمسی
+    تبدیل تاریخ میلادی به شمسی (فارسی)
+
+    Args:
+        dt: شیء datetime میلادی (اگر None بود، زمان حالا)
+
+    Returns:
+        رشته تاریخ شمسی مثل «۱۴۰۵/۰۹/۰۱»
     """
+    if dt is None:
+        dt = datetime.now()
+
+    # اگر timezone-aware بود، به naive تبدیل کن
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(tz=None).replace(tzinfo=None)
+
     try:
-        if dt is None:
-            dt = datetime.now()
-        elif isinstance(dt, str):
-            # تلاش برای تبدیل رشته به datetime
-            for fmt_try in [
-                "%Y-%m-%d %H:%M:%S",
-                "%Y-%m-%dT%H:%M:%S",
-                "%a, %d %b %Y %H:%M:%S %z",
-                "%a, %d %b %Y %H:%M:%S GMT",
-                "%Y-%m-%d"
-            ]:
-                try:
-                    dt = datetime.strptime(dt.strip(), fmt_try)
-                    break
-                except ValueError:
-                    continue
-            else:
-                # اگر هیچ فرمتی نخورد، زمان الان را برگردان
-                dt = datetime.now()
-
-        # حذف timezone برای jdatetime
-        if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
-            dt = dt.replace(tzinfo=None)
-
         jdt = jdatetime.datetime.fromgregorian(datetime=dt)
-        return jdt.strftime(fmt)
-
+        # فرمت: ۱۴۰۵/۰۹/۰۱
+        return jdt.strftime("%Y/%m/%d")
     except Exception:
-        return jdatetime.datetime.now().strftime(fmt)
+        return dt.strftime("%Y/%m/%d")
 
 
-def now_shamsi(fmt="%Y/%m/%d %H:%M:%S"):
-    """زمان الان به شمسی"""
-    return jdatetime.datetime.now().strftime(fmt)
+def parse_rss_date(date_str: str) -> str:
+    """
+    تبدیل رشته تاریخ RSS به تاریخ شمسی
 
+    Args:
+        date_str: رشته تاریخ از RSS (مثل 'Mon, 01 Jan 2024 ...')
 
-def shamsi_date_only(fmt="%Y/%m/%d"):
-    """فقط تاریخ امروز به شمسی"""
-    return jdatetime.date.today().strftime(fmt)
+    Returns:
+        تاریخ شمسی یا تاریخ امروز در صورت خطا
+    """
+    if not date_str:
+        return gregorian_to_shamsi()
 
-
-def weekday_shamsi():
-    """نام روز هفته به فارسی"""
-    days = ["دوشنبه","سه‌شنبه","چهارشنبه","پنج‌شنبه","جمعه","شنبه","یکشنبه"]
-    return days[jdatetime.date.today().weekday()]
-
-
-def format_shamsi_full():
-    """تاریخ کامل فارسی - مثال: شنبه ۱ آذر ۱۴۰۵"""
-    months = [
-        "فروردین","اردیبهشت","خرداد","تیر","مرداد","شهریور",
-        "مهر","آبان","آذر","دی","بهمن","اسفند"
+    # فرمت‌های رایج RSS
+    formats = [
+        "%a, %d %b %Y %H:%M:%S %z",
+        "%a, %d %b %Y %H:%M:%S %Z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+        "%d %b %Y %H:%M:%S %z",
     ]
-    today = jdatetime.date.today()
-    return f"{weekday_shamsi()} {today.day} {months[today.month-1]} {today.year}"
+
+    for fmt in formats:
+        try:
+            dt = datetime.strptime(date_str.strip(), fmt)
+            return gregorian_to_shamsi(dt)
+        except ValueError:
+            continue
+
+    # اگر هیچ فرمتی کار نکرد، تاریخ امروز
+    return gregorian_to_shamsi()
+
+
+def now_shamsi() -> str:
+    """تاریخ شمسی امروز"""
+    return gregorian_to_shamsi(datetime.now())
+
+
+def now_utc_iso() -> str:
+    """زمان حالا به فرمت ISO 8601 با UTC"""
+    return datetime.now(timezone.utc).isoformat()
