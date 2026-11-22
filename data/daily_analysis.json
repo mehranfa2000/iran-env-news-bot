@@ -1,0 +1,27 @@
+{
+  "generated_at": "01 Azar 1405 — 19:32",
+  "status": "success",
+  "total_news": 20,
+  "critical_count": 2,
+  "category_stats": {
+    "🌬️ آلودگی هوا، آب و خاک": 12,
+    "🌊 تالاب‌ها، دریاها و منابع آب": 4,
+    "🐆 حیات وحش و تنوع زیستی": 3,
+    "🌲 جنگل‌ها، مراتع و منابع طبیعی": 1
+  },
+  "source_stats": {
+    "خبرآنلاین": 8,
+    "همشهری": 8,
+    "مهر": 1,
+    "ایرنا": 3
+  },
+  "overall_risk": "حساس",
+  "executive_summary": "تحلیل در دسترس نیست.",
+  "top_issues": "",
+  "recommendations": "",
+  "media_strategy": "",
+  "urgent_actions": "",
+  "positive_points": "",
+  "stakeholders": "",
+  "news_analyses": []
+}
