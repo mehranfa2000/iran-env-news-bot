@@ -1,26 +1,29 @@
-name: 🌿 پایش اخبار محیط زیست
+name: 📡 جمع‌آوری، تحلیل و ارسال
 
 on:
   schedule:
-    - cron: '30 * * * *'
+    - cron: '0 * * * *'
   workflow_dispatch:
+
+concurrency:
+  group: iran-env-news-bot
+  cancel-in-progress: false
 
 permissions:
   contents: write
 
 jobs:
-  run:
-    name: 📡 جمع‌آوری، تحلیل و ارسال
+  collect-and-send:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     steps:
-      - name: 📥 دریافت مخزن
+      - name: ⬇️ دریافت کدها
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 🐍 Python 3.12
+      - name: 🐍 نصب Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -29,24 +32,19 @@ jobs:
       - name: 📦 نصب کتابخانه‌ها
         run: pip install -r requirements.txt
 
-      - name: 🌿 اجرای ربات
+      - name: 🤖 اجرای سیستم
         env:
-          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
-          BALE_BOT_TOKEN:      ${{ secrets.BALE_BOT_TOKEN }}
-          BALE_CHANNEL_ID:     ${{ secrets.BALE_CHANNEL_ID }}
-          GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+          BALE_BOT_TOKEN: ${{ secrets.BALE_BOT_TOKEN }}
+          BALE_CHANNEL_ID: ${{ secrets.BALE_CHANNEL_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python main.py
 
-      - name: 💾 ذخیره news.json
+      - name: 💾 ذخیره تغییرات
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "Iran Env Bot"
+          git config --global user.email "bot@iran-env.ir"
           git add data/news.json
-          if git diff --cached --quiet; then
-            echo "✅ تغییری نیست"
-          else
-            git commit -m "📰 بروزرسانی — $(date -u '+%Y-%m-%d %H:%M') UTC"
-            git push
-            echo "✅ push شد"
-          fi
+          git diff --staged --quiet || git commit -m "🌿 بروزرسانی اخبار - $(date +'%Y-%m-%d %H:%M')"
+          git push
