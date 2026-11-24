@@ -1,42 +1,34 @@
-# run.yml — v4.0
-# ایجنت هوشمند محیط‌زیست — اجرای هر ۱ ساعت
-
-name: 🌿 Iran Env News Agent v4.0
+name: 🌿 Iran Env News Bot
 
 on:
   schedule:
-    - cron: "0 * * * *"   # هر ساعت دقیق
+    - cron: "0 * * * *"   # هر ساعت
   workflow_dispatch:        # اجرای دستی
 
 concurrency:
-  group: iran-env-news-bot
-  cancel-in-progress: false  # هیچ اجرایی لغو نمی‌شود
+  group: news-bot
+  cancel-in-progress: false
 
 permissions:
-  contents: write           # برای commit و push
+  contents: write
 
 jobs:
-  run-agent:
-    name: Run News Agent
+  run:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 18
 
     steps:
-      # ── ۱) دریافت کد ────────────────────────────────────────
-      - name: ⬇️ Checkout repository
+      - name: ⬇️ Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
 
-      # ── ۲) Python ───────────────────────────────────────────
-      - name: 🐍 Setup Python 3.12
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"
+          cache: pip
 
-      # ── ۳) نصب وابستگی‌ها ───────────────────────────────────
       - name: 📦 Install dependencies
         run: |
           pip install --upgrade pip
@@ -48,40 +40,37 @@ jobs:
             jdatetime==4.1.1 \
             google-generativeai==0.8.3
 
-      # ── ۴) ایجاد پوشه data ──────────────────────────────────
-      - name: 📁 Ensure data directory
-        run: mkdir -p data
-
-      # ── ۵) اجرای ایجنت ──────────────────────────────────────
-      - name: 🚀 Run agent
+      - name: 🌿 Run bot
         env:
-          TELEGRAM_BOT_TOKEN:  ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
           BALE_BOT_TOKEN:      ${{ secrets.BALE_BOT_TOKEN }}
           BALE_CHANNEL_ID:     ${{ secrets.BALE_CHANNEL_ID }}
           GEMINI_API_KEY:      ${{ secrets.GEMINI_API_KEY }}
+          PYTHONWARNINGS: ignore
         run: python main.py
 
-      # ── ۶) commit و push ────────────────────────────────────
-      - name: 💾 Commit and push data
+      - name: 📤 Commit & Push (conflict-safe)
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # ذخیره موقت فایل‌های جدید تولیدشده توسط agent
+          # کپی فایل‌های جدید به /tmp
           cp data/news.json      /tmp/news_new.json      2>/dev/null || true
           cp data/run_stats.json /tmp/run_stats_new.json 2>/dev/null || true
 
-          # دریافت آخرین نسخه از remote
+          # بروزرسانی از ریموت
           git fetch origin main
           git reset --soft origin/main
 
-          # بازگرداندن فایل‌های جدید روی آخرین نسخه remote
+          # بازگرداندن فایل‌های جدید
           cp /tmp/news_new.json      data/news.json      2>/dev/null || true
           cp /tmp/run_stats_new.json data/run_stats.json 2>/dev/null || true
 
-          # commit و push
           git add data/news.json data/run_stats.json || true
+
+          # اگر تغییری نباشد exit
           git diff --staged --quiet && echo "⏭ تغییری نیست" && exit 0
+
           git commit -m "🤖 auto: news update $(date -u '+%Y-%m-%d %H:%M UTC')"
           git push origin main
