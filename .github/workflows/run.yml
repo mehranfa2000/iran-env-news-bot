@@ -26,7 +26,7 @@ jobs:
       - name: ⬇️ Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0        # تاریخچه کامل برای rebase
+          fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # ── ۲) Python ───────────────────────────────────────────
@@ -34,7 +34,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-          cache: "pip"          # کش pip برای سرعت بیشتر
+          cache: "pip"
 
       # ── ۳) نصب وابستگی‌ها ───────────────────────────────────
       - name: 📦 Install dependencies
@@ -67,8 +67,21 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # ذخیره موقت فایل‌های جدید تولیدشده توسط agent
+          cp data/news.json      /tmp/news_new.json      2>/dev/null || true
+          cp data/run_stats.json /tmp/run_stats_new.json 2>/dev/null || true
+
+          # دریافت آخرین نسخه از remote
+          git fetch origin main
+          git reset --soft origin/main
+
+          # بازگرداندن فایل‌های جدید روی آخرین نسخه remote
+          cp /tmp/news_new.json      data/news.json      2>/dev/null || true
+          cp /tmp/run_stats_new.json data/run_stats.json 2>/dev/null || true
+
+          # commit و push
           git add data/news.json data/run_stats.json || true
           git diff --staged --quiet && echo "⏭ تغییری نیست" && exit 0
           git commit -m "🤖 auto: news update $(date -u '+%Y-%m-%d %H:%M UTC')"
-          git pull --rebase origin main
           git push origin main
