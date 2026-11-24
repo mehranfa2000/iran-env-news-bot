@@ -1,168 +1,209 @@
+# src/config.py
 """
-config.py — v4.0
-سازمان حفاظت محیط‌زیست ایران | سامانه پایش هوشمند اخبار
-تمامی تنظیمات مرکزی پروژه
+تنظیمات مرکزی سیستم پایش هوشمند اخبار محیط‌زیست
+نسخه ۴.۰ — سازمان حفاظت محیط‌زیست ایران
 """
 
 from __future__ import annotations
 import os
 import logging
-from dataclasses import dataclass, field
-from typing import Final
 
-# ═══════════════════════════════════════════════════════════════
-# ۱) لاگینگ حرفه‌ای
-# ═══════════════════════════════════════════════════════════════
+# ─────────────────────────── لاگ‌گیری ───────────────────────────
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s — %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("config")
 
-# ═══════════════════════════════════════════════════════════════
-# ۲) متغیرهای محیطی (از GitHub Secrets)
-# ═══════════════════════════════════════════════════════════════
-TELEGRAM_BOT_TOKEN: Final[str] = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHANNEL_ID: Final[str] = os.environ.get("TELEGRAM_CHANNEL_ID", "")
-BALE_BOT_TOKEN: Final[str]      = os.environ.get("BALE_BOT_TOKEN", "")
-BALE_CHANNEL_ID: Final[str]     = os.environ.get("BALE_CHANNEL_ID", "")
-GEMINI_API_KEY: Final[str]      = os.environ.get("GEMINI_API_KEY", "")
+# ─────────────────────────── توکن‌ها و کلیدها ───────────────────────────
+TELEGRAM_BOT_TOKEN: str   = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_CHANNEL_ID: str  = os.environ.get("TELEGRAM_CHANNEL_ID", "")
+BALE_BOT_TOKEN: str       = os.environ.get("BALE_BOT_TOKEN", "")
+BALE_CHANNEL_ID: str      = os.environ.get("BALE_CHANNEL_ID", "")
+GEMINI_API_KEY: str       = os.environ.get("GEMINI_API_KEY", "")
 
-# ═══════════════════════════════════════════════════════════════
-# ۳) آدرس‌های API
-# ═══════════════════════════════════════════════════════════════
-TELEGRAM_API_BASE: Final[str] = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}"
-BALE_API_BASE: Final[str]     = f"https://tapi.bale.ai/bot{BALE_BOT_TOKEN}"
+# ─────────────────────────── مدل هوش مصنوعی ───────────────────────────
+AI_MODEL: str             = "gemini-2.0-flash"          # ← مدل فعال
+AI_MAX_PER_RUN: int       = 5                            # حداکثر تحلیل کامل در هر اجرا
+AI_SUMMARY_MAX_PER_RUN: int = 5                          # حداکثر خلاصه‌سازی در هر اجرا
+AI_MAX_PER_DAY: int       = 20                           # حداکثر کل AI در روز
+AI_TIMEOUT: int           = 30                           # ثانیه
 
-# ═══════════════════════════════════════════════════════════════
-# ۴) مدل هوش مصنوعی
-# ═══════════════════════════════════════════════════════════════
-AI_MODEL: Final[str]           = "gemini-2.0-flash"
-AI_MAX_PER_RUN: Final[int]     = 5          # حداکثر تحلیل در هر اجرا
-AI_MAX_PER_DAY: Final[int]     = 20         # حداکثر تحلیل روزانه
-AI_SUMMARY_MAX_PER_RUN: Final[int] = 15     # خلاصه‌سازی AI برای خبرهای عادی
-AI_TEMPERATURE: Final[float]   = 0.3        # دقت بالا، خلاقیت کمتر
+# ─────────────────────────── مسیرها ───────────────────────────
+DATA_DIR: str             = "data"
+NEWS_FILE: str            = f"{DATA_DIR}/news.json"
+ANALYSIS_FILE: str        = f"{DATA_DIR}/daily_analysis.json"
+RUN_STATS_FILE: str       = f"{DATA_DIR}/run_stats.json"
 
-# ═══════════════════════════════════════════════════════════════
-# ۵) تنظیمات ذخیره‌سازی
-# ═══════════════════════════════════════════════════════════════
-NEWS_FILE: Final[str]           = "data/news.json"
-DAILY_ANALYSIS_FILE: Final[str] = "data/daily_analysis.json"
-RUN_STATS_FILE: Final[str]      = "data/run_stats.json"
-MAX_STORED_NEWS: Final[int]     = 1000      # حداکثر خبر ذخیره‌شده
-MAX_NEWS_PER_RUN: Final[int]    = 30        # حداکثر خبر جدید در هر اجرا
+# ─────────────────────────── محدودیت‌های ذخیره‌سازی ───────────────────────────
+MAX_STORED_NEWS: int      = 1000
+MAX_RUN_STATS: int        = 48                          # آخرین ۴۸ اجرا
 
-# ═══════════════════════════════════════════════════════════════
-# ۶) تنظیمات collector
-# ═══════════════════════════════════════════════════════════════
-COLLECTOR_MAX_WORKERS: Final[int]  = 6      # تعداد thread های موازی
-COLLECTOR_TIMEOUT: Final[int]      = 20     # timeout هر درخواست (ثانیه)
-COLLECTOR_MAX_RETRIES: Final[int]  = 3      # تعداد تلاش مجدد
-FEED_MAX_ENTRIES: Final[int]       = 30     # حداکثر خبر از هر فید
+# ─────────────────────────── فیلترینگ ───────────────────────────
+SCORE_THRESHOLD_DEDICATED: int = 2                      # فیدهای تخصصی محیط‌زیست
+SCORE_THRESHOLD_GENERAL: int   = 5                      # فیدهای عمومی
+CRITICAL_SCORE_THRESHOLD: int  = 15                     # آستانه خبر بحرانی
 
-# ═══════════════════════════════════════════════════════════════
-# ۷) تنظیمات فیلتر
-# ═══════════════════════════════════════════════════════════════
-SCORE_THRESHOLD_DEDICATED: Final[int] = 2  # آستانه برای فیدهای اختصاصی
-SCORE_THRESHOLD_GENERAL: Final[int]   = 5  # آستانه برای فیدهای عمومی
-CRITICAL_SCORE_THRESHOLD: Final[int]  = 15 # آستانه خبر بحرانی
+# ─────────────────────────── ارسال ───────────────────────────
+MAX_NEWS_PER_RUN: int         = 30                      # حداکثر خبر در هر اجرا
+DELAY_BETWEEN_SENDS: float    = 4.0                     # ثانیه بین ارسال‌ها
+TELEGRAM_CAPTION_MAX: int     = 1024
+BALE_CAPTION_MAX: int         = 1024
 
-# ═══════════════════════════════════════════════════════════════
-# ۸) تنظیمات ارسال
-# ═══════════════════════════════════════════════════════════════
-DELAY_BETWEEN_SENDS: Final[int]    = 4     # تأخیر بین ارسال‌ها (ثانیه)
-DELAY_BETWEEN_PLATFORMS: Final[int]= 2     # تأخیر بین تلگرام و بله
-MAX_CAPTION_LENGTH: Final[int]     = 1024  # محدودیت caption تلگرام/بله
-MAX_MESSAGE_LENGTH: Final[int]     = 4096  # محدودیت پیام متنی
+# ─────────────────────────── کالکتور ───────────────────────────
+COLLECTOR_MAX_WORKERS: int    = 6
+COLLECTOR_TIMEOUT: int        = 15
+COLLECTOR_MAX_RETRIES: int    = 2
 
-# ═══════════════════════════════════════════════════════════════
-# ۹) تصویر پیش‌فرض اگر خبر تصویر نداشت
-# ═══════════════════════════════════════════════════════════════
-DEFAULT_IMAGE_URL: Final[str] = (
-    "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9e/"
-    "Iran_in_its_region.svg/800px-Iran_in_its_region.svg.png"
-)
-ENV_LOGO_URL: Final[str] = (
-    "https://upload.wikimedia.org/wikipedia/fa/thumb/0/0d/"
-    "Iran_DOE_logo.svg/200px-Iran_DOE_logo.svg.png"
-)
+# ─────────────────────────── آدرس API ───────────────────────────
+TELEGRAM_API_BASE: str = "https://api.telegram.org/bot"
+BALE_API_BASE: str     = "https://tapi.bale.ai/bot"
 
-# ═══════════════════════════════════════════════════════════════
-# ۱۰) امضای ربات
-# ═══════════════════════════════════════════════════════════════
-BOT_SIGNATURE: Final[str] = (
-    "🌿 <b>سامانه پایش هوشمند اخبار محیط‌زیست</b>\n"
+# ─────────────────────────── امضای پیام ───────────────────────────
+BOT_SIGNATURE: str = (
+    "\n\n🌿 <b>سامانه پایش هوشمند اخبار محیط‌زیست</b>\n"
     "🏛 روابط‌عمومی سازمان حفاظت محیط‌زیست ایران"
 )
 
-# ═══════════════════════════════════════════════════════════════
-# ۱۱) دسته‌بندی‌های محیط‌زیستی
-# ═══════════════════════════════════════════════════════════════
-@dataclass(frozen=True)
-class Category:
-    id: str
-    name: str
-    emoji: str
-    color: str          # برای داشبورد
+# ─────────────────────────── دسته‌بندی‌ها ───────────────────────────
+CATEGORIES: dict[str, dict] = {
+    "air_water_soil": {
+        "label": "آلودگی هوا، آب و خاک",
+        "emoji": "🌬️",
+        "color": "#ef4444",
+    },
+    "wildlife": {
+        "label": "حیات وحش و تنوع زیستی",
+        "emoji": "🐆",
+        "color": "#f97316",
+    },
+    "water_wetlands": {
+        "label": "تالاب‌ها، دریاها و منابع آب",
+        "emoji": "🌊",
+        "color": "#3b82f6",
+    },
+    "climate": {
+        "label": "تغییر اقلیم و بحران‌های طبیعی",
+        "emoji": "🌡️",
+        "color": "#8b5cf6",
+    },
+    "forests": {
+        "label": "جنگل‌ها، مراتع و منابع طبیعی",
+        "emoji": "🌲",
+        "color": "#22c55e",
+    },
+    "policy": {
+        "label": "سیاست‌ها، قوانین و سازمان",
+        "emoji": "🏛️",
+        "color": "#64748b",
+    },
+    "sustainable": {
+        "label": "توسعه پایدار و انرژی پاک",
+        "emoji": "♻️",
+        "color": "#10b981",
+    },
+}
 
-CATEGORIES: Final[list[Category]] = [
-    Category("air_water_soil",  "آلودگی هوا، آب و خاک",          "🌬️", "#ef4444"),
-    Category("wildlife",        "حیات وحش و تنوع زیستی",         "🐆", "#f97316"),
-    Category("water_wetlands",  "تالاب‌ها، دریاها و منابع آب",    "🌊", "#3b82f6"),
-    Category("climate",         "تغییر اقلیم و بحران‌های طبیعی",  "🌡️", "#8b5cf6"),
-    Category("forests",         "جنگل‌ها، مراتع و منابع طبیعی",   "🌲", "#22c55e"),
-    Category("policy",          "سیاست‌ها، قوانین و سازمان",       "🏛️", "#64748b"),
-    Category("sustainable",     "توسعه پایدار و انرژی پاک",       "♻️", "#10b981"),
+# ─────────────────────────── فیدهای RSS ───────────────────────────
+RSS_FEEDS: list[dict] = [
+    # ── فیدهای تخصصی محیط‌زیست (dedicated=True → آستانه پایین‌تر) ──
+    {
+        "name": "ایرنا محیط‌زیست",
+        "url": "https://www.irna.ir/rss/environment.xml",
+        "dedicated": True,
+        "skip_on_error": False,
+    },
+    {
+        "name": "مهر محیط‌زیست",
+        "url": "https://www.mehrnews.com/rss/environment",
+        "dedicated": True,
+        "skip_on_error": False,
+    },
+    {
+        "name": "صدا و سیما محیط‌زیست",
+        "url": "https://www.iribnews.ir/rss/environment",
+        "dedicated": True,
+        "skip_on_error": False,
+    },
+    {
+        "name": "صدا و سیما آب و خاک",
+        "url": "https://www.iribnews.ir/rss/water-soil",
+        "dedicated": True,
+        "skip_on_error": False,
+    },
+    {
+        "name": "فارس محیط‌زیست",
+        "url": "https://www.farsnews.ir/rss/environment",
+        "dedicated": True,
+        "skip_on_error": True,   # SSL hostname mismatch — harmless
+    },
+    {
+        "name": "ایسنا محیط‌زیست",
+        "url": "https://www.isna.ir/rss/tp-78",
+        "dedicated": True,
+        "skip_on_error": True,   # اغلب fail — harmless
+    },
+    # ── فیدهای عمومی (dedicated=False → آستانه بالاتر) ──
+    {
+        "name": "ایرنا عمومی",
+        "url": "https://www.irna.ir/rss/latest.xml",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    {
+        "name": "مهر عمومی",
+        "url": "https://www.mehrnews.com/rss/allnews",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    {
+        "name": "ایمنا",
+        "url": "https://www.imna.ir/rss",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    {
+        "name": "اطلاعات",
+        "url": "https://www.ettelaat.com/rss",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    {
+        "name": "سلامت نیوز",
+        "url": "https://www.salamatnews.com/rss",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    # ── فیدهای پشتیبان ──
+    {
+        "name": "همشهری",
+        "url": "https://www.hamshahrionline.ir/rss",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    {
+        "name": "خبرآنلاین",
+        "url": "https://www.khabaronline.ir/rss",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
+    {
+        "name": "ایسنا عمومی",
+        "url": "https://www.isna.ir/rss",
+        "dedicated": False,
+        "skip_on_error": False,
+    },
 ]
 
-CATEGORY_MAP: Final[dict[str, Category]] = {c.id: c for c in CATEGORIES}
-
-# ═══════════════════════════════════════════════════════════════
-# ۱۲) فیدهای RSS (۱۴ فید)
-# ═══════════════════════════════════════════════════════════════
-@dataclass
-class FeedConfig:
-    name: str
-    url: str
-    dedicated: bool = True      # فید اختصاصی محیط‌زیست؟
-    skip_on_error: bool = False
-    priority: int = 1           # اولویت (۱=بالا)
-
-FEEDS: Final[list[FeedConfig]] = [
-    FeedConfig("ایرنا محیط‌زیست",     "https://www.irna.ir/rss/tp/32",                   dedicated=True,  priority=1),
-    FeedConfig("مهر محیط‌زیست",       "https://www.mehrnews.com/rss/tp/64",               dedicated=True,  priority=1),
-    FeedConfig("ایسنا محیط‌زیست",     "https://www.isna.ir/rss/tp/13",                   dedicated=True,  priority=1),
-    FeedConfig("فارس محیط‌زیست",      "https://www.farsnews.ir/rss/tp/13",                dedicated=True,  priority=1),
-    FeedConfig("تسنیم",               "https://www.tasnimnews.com/fa/rss/feed/0/8/0",    dedicated=True,  priority=1),
-    FeedConfig("ایمنا",               "https://www.imna.ir/rss/tp/153",                  dedicated=True,  priority=2),
-    FeedConfig("اطلاعات",             "https://www.ettelaat.com/rss/tp/65",              dedicated=True,  priority=2),
-    FeedConfig("صدا و سیما محیط‌زیست","https://www.iribnews.ir/fa/rss/7/39",             dedicated=True,  priority=2),
-    FeedConfig("صدا و سیما آب",        "https://www.iribnews.ir/fa/rss/6/8",              dedicated=True,  priority=2),
-    FeedConfig("سلامت نیوز",          "https://www.salamatnews.com/rss/tp/11",           dedicated=True,  priority=2),
-    FeedConfig("همشهری محیط‌زیست",    "https://www.hamshahrionline.ir/rss/tp/584",       dedicated=True,  priority=2),
-    FeedConfig("خبرآنلاین",           "https://www.khabaronline.ir/rss/tp/44",           dedicated=True,  priority=2),
-    FeedConfig("ایسنا عمومی",         "https://www.isna.ir/rss",                         dedicated=False, priority=3),
-    FeedConfig("باشگاه خبرنگاران",    "https://www.yjc.ir/fa/rss/5/74",                 dedicated=True,  skip_on_error=True, priority=3),
+# ─────────────────────────── user-agent ها ───────────────────────────
+USER_AGENTS: list[str] = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "feedparser/6.0.11 +https://github.com/kurtmckee/feedparser",
+    "python-requests/2.32.3",
 ]
 
-# ═══════════════════════════════════════════════════════════════
-# ۱۳) اعتبارسنجی
-# ═══════════════════════════════════════════════════════════════
-def validate_config() -> bool:
-    """بررسی می‌کند که همه متغیرهای ضروری تنظیم شده‌اند."""
-    missing = []
-    for var_name, value in [
-        ("TELEGRAM_BOT_TOKEN", TELEGRAM_BOT_TOKEN),
-        ("TELEGRAM_CHANNEL_ID", TELEGRAM_CHANNEL_ID),
-        ("BALE_BOT_TOKEN", BALE_BOT_TOKEN),
-        ("BALE_CHANNEL_ID", BALE_CHANNEL_ID),
-        ("GEMINI_API_KEY", GEMINI_API_KEY),
-    ]:
-        if not value:
-            missing.append(var_name)
-    if missing:
-        logger.error("متغیرهای محیطی یافت نشد: %s", ", ".join(missing))
-        return False
-    logger.info("✅ تمام متغیرهای محیطی تنظیم شده‌اند.")
-    return True
+logger.info("✅ تنظیمات بارگذاری شد — مدل: %s", AI_MODEL)
