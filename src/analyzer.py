@@ -1,190 +1,357 @@
 """
-تحلیلگر هوش مصنوعی — Gemini 2.0 Flash
-فقط اخبار بحرانی (critical=True) را تحلیل می‌کند
-حداکثر AI_MAX_PER_RUN خبر در هر اجرا
-حداکثر AI_MAX_PER_DAY خبر در کل روز
-خروجی: مشاوره روابط‌عمومی کوتاه و کاربردی
+analyzer.py — v4.0
+تحلیل هوشمند اخبار با Gemini 2.0 Flash
+قابلیت‌های جدید:
+  - خلاصه‌سازی AI برای همه خبرها (نه فقط بحرانی)
+  - تحلیل عمیق ۹ فیلده برای خبرهای بحرانی
+  - Rate limiting هوشمند (10 RPM رایگان)
+  - Retry با backoff نمایی
+  - پشتیبانی از JSON schema ساختاریافته
 """
+
+from __future__ import annotations
 
 import json
 import logging
 import time
-from datetime import date
+from dataclasses import asdict, dataclass, field
+from datetime import date, datetime, timezone
+from pathlib import Path
+from typing import Optional
 
-from google import genai
-from google.genai import types
-from pydantic import BaseModel
+import google.generativeai as genai
 
 from src.config import (
-    GEMINI_API_KEY, AI_ENABLED, AI_MODEL,
-    AI_MAX_PER_RUN, AI_MAX_PER_DAY,
-    AI_TIMEOUT, AI_RETRY_ATTEMPTS,
+    AI_MAX_PER_DAY,
+    AI_MAX_PER_RUN,
+    AI_MODEL,
+    AI_SUMMARY_MAX_PER_RUN,
+    AI_TEMPERATURE,
+    GEMINI_API_KEY,
+    RUN_STATS_FILE,
 )
+from src.filter import FilteredNewsItem
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("analyzer")
 
-
-# ───────────────────────────────────────────
-# مدل خروجی ساختاریافته (Pydantic)
-# ───────────────────────────────────────────
-class CriticalAnalysis(BaseModel):
-    sensitivity:       str   # بحرانی / حساس / عادی / مثبت
-    sentiment:         str   # منفی / خنثی / مثبت
-    one_line_summary:  str   # یک جمله تحلیل
-    action:            str   # یک جمله اقدام پیشنهادی
-    draft_response:    str   # دو جمله پیش‌نویس رسمی
-    stakeholders:      str   # سازمان‌های ذینفع (کاما جدا)
-    urgency:           str   # فوری / ۲۴ ساعت / هفتگی / نیازی نیست
-
-
-# ───────────────────────────────────────────
-# نگاشت حساسیت به ایموجی و برچسب
-# ───────────────────────────────────────────
-SENSITIVITY_MAP = {
-    "بحرانی": "🔴",
-    "حساس":   "🟡",
-    "عادی":   "🔵",
-    "مثبت":   "🟢",
-}
+# ═══════════════════════════════════════════════════════════════
+# ۱) ساختار تحلیل PR (۹ فیلد)
+# ═══════════════════════════════════════════════════════════════
+@dataclass
+class PRAnalysis:
+    sensitivity: str        # حساسیت: خیلی‌بالا / بالا / متوسط / پایین
+    sentiment: str          # احساس: منفی / خنثی / مثبت / مختلط
+    summary: str            # خلاصه تحلیلی (۲-۳ جمله فارسی)
+    risk_factors: list[str] # عوامل خطر (لیست)
+    action: str             # اقدام پیشنهادی فوری
+    draft_response: str     # پیش‌نویس پاسخ رسمی
+    stakeholders: list[str] # ذی‌نفعان اصلی
+    urgency: str            # فوریت: فوری / ۲۴ساعت / هفته‌جاری / عادی
+    media_risk: str         # ریسک رسانه‌ای: بالا / متوسط / پایین
 
 
-def _build_prompt(title: str, summary: str) -> str:
-    return f"""تو مشاور ارشد روابط عمومی سازمان محیط‌زیست ایران هستی.
-این خبر بحرانی را سریع تحلیل کن و پاسخ کوتاه و کاربردی بده:
+@dataclass
+class AIResult:
+    uid: str
+    ai_summary: Optional[str]       = None   # خلاصه کوتاه (همه خبرها)
+    pr_analysis: Optional[PRAnalysis] = None  # تحلیل کامل (فقط بحرانی)
+    model_used: str                 = AI_MODEL
+    analyzed_at: str                = ""
+    tokens_used: int                = 0
 
-عنوان خبر: {title}
-خلاصه خبر: {summary[:300]}
-
-پاسخ کاملاً فارسی. هر بخش بسیار کوتاه (حداکثر ۲ جمله):
-- sensitivity: یکی از [بحرانی، حساس، عادی، مثبت]
-- sentiment: یکی از [منفی، خنثی، مثبت]
-- one_line_summary: یک جمله تحلیل اصلی
-- action: یک جمله اقدام پیشنهادی فوری
-- draft_response: دو جمله پیش‌نویس پاسخ رسمی سازمان
-- stakeholders: سازمان‌های ذینفع با کاما
-- urgency: یکی از [فوری، ۲۴ ساعت، هفتگی، نیازی نیست]"""
-
-
-def _count_today_analyzed(news_list: list[dict]) -> int:
-    """تعداد اخباری که امروز تحلیل AI شده‌اند"""
-    today = date.today().isoformat()
-    return sum(
-        1 for n in news_list
-        if n.get("ai_analyzed") and n.get("date", "").startswith(today)
-    )
+    def to_dict(self) -> dict:
+        d = {
+            "uid": self.uid,
+            "ai_summary": self.ai_summary,
+            "model_used": self.model_used,
+            "analyzed_at": self.analyzed_at,
+            "tokens_used": self.tokens_used,
+        }
+        if self.pr_analysis:
+            d["pr_analysis"] = asdict(self.pr_analysis)
+        return d
 
 
-def _analyze_one(client: genai.Client, title: str, summary: str) -> dict | None:
-    """تحلیل یک خبر با Gemini"""
-    prompt = _build_prompt(title, summary)
+# ═══════════════════════════════════════════════════════════════
+# ۲) شمارنده روزانه (rate limit)
+# ═══════════════════════════════════════════════════════════════
+class DailyCounter:
+    """تعداد تحلیل‌های AI امروز را ردیابی می‌کند."""
 
-    for attempt in range(1, AI_RETRY_ATTEMPTS + 1):
+    def __init__(self, stats_file: str = RUN_STATS_FILE):
+        self.stats_file = Path(stats_file)
+        self._data = self._load()
+
+    def _load(self) -> dict:
         try:
-            response = client.models.generate_content(
-                model=AI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    response_mime_type="application/json",
-                    response_schema=CriticalAnalysis,
-                    temperature=0.3,
-                    max_output_tokens=512,
-                ),
+            if self.stats_file.exists():
+                raw = json.loads(self.stats_file.read_text(encoding="utf-8"))
+                return raw.get("ai_usage", {})
+        except Exception:
+            pass
+        return {}
+
+    def _save(self, all_stats: dict) -> None:
+        try:
+            self.stats_file.parent.mkdir(parents=True, exist_ok=True)
+            if self.stats_file.exists():
+                current = json.loads(self.stats_file.read_text(encoding="utf-8"))
+            else:
+                current = {}
+            current["ai_usage"] = self._data
+            current.update(all_stats)
+            self.stats_file.write_text(
+                json.dumps(current, ensure_ascii=False, indent=2),
+                encoding="utf-8",
             )
-            parsed: CriticalAnalysis = response.parsed
-            emoji = SENSITIVITY_MAP.get(parsed.sensitivity, "🔵")
+        except Exception as exc:
+            logger.warning("خطا در ذخیره ai_usage: %s", exc)
 
-            return {
-                "sensitivity":      parsed.sensitivity,
-                "sensitivity_emoji": emoji,
-                "sentiment":        parsed.sentiment,
-                "summary":          parsed.one_line_summary,
-                "action":           parsed.action,
-                "draft_response":   parsed.draft_response,
-                "stakeholders":     parsed.stakeholders,
-                "urgency":          parsed.urgency,
-            }
+    def today_key(self) -> str:
+        return date.today().isoformat()
 
-        except Exception as e:
-            logger.warning(f"[AI attempt {attempt}/{AI_RETRY_ATTEMPTS}] {e}")
-            if attempt < AI_RETRY_ATTEMPTS:
-                time.sleep(5)
+    def used_today(self) -> int:
+        return self._data.get(self.today_key(), 0)
 
-    return None
+    def increment(self, n: int = 1) -> None:
+        key = self.today_key()
+        self._data[key] = self._data.get(key, 0) + n
+        self._save({})
+
+    def can_analyze(self, max_per_day: int = AI_MAX_PER_DAY) -> bool:
+        return self.used_today() < max_per_day
 
 
-def _fallback_analysis(title: str) -> dict:
-    """تحلیل پشتیبان در صورت خطای AI"""
-    return {
-        "sensitivity":       "حساس",
-        "sensitivity_emoji": "🟡",
-        "sentiment":         "منفی",
-        "summary":           "نیاز به بررسی دستی توسط کارشناس.",
-        "action":            "پیگیری و بررسی توسط واحد روابط عمومی.",
-        "draft_response":    "سازمان محیط‌زیست موضوع را با جدیت پیگیری می‌کند.",
-        "stakeholders":      "سازمان محیط‌زیست",
-        "urgency":           "۲۴ ساعت",
-    }
+# ═══════════════════════════════════════════════════════════════
+# ۳) کلاس اصلی تحلیلگر
+# ═══════════════════════════════════════════════════════════════
+class NewsAnalyzer:
+    """تحلیلگر هوش مصنوعی با Gemini 2.0 Flash"""
 
+    # حداقل فاصله بین درخواست‌ها (Rate limit: 10 RPM)
+    _MIN_INTERVAL_SECONDS = 7
 
-def analyze_batch(news_list: list[dict]) -> list[dict]:
-    """
-    تحلیل دسته‌ای اخبار بحرانی.
-    - فقط آیتم‌هایی که critical=True دارند
-    - رعایت AI_MAX_PER_RUN و AI_MAX_PER_DAY
-    - 2 ثانیه delay بین درخواست‌ها (rate limit)
-    """
-    if not AI_ENABLED:
-        logger.info("[AI] غیرفعال — GEMINI_API_KEY تنظیم نشده")
-        return news_list
+    def __init__(self):
+        genai.configure(api_key=GEMINI_API_KEY)
+        self.model = genai.GenerativeModel(
+            model_name=AI_MODEL,
+            generation_config=genai.types.GenerationConfig(
+                temperature=AI_TEMPERATURE,
+                max_output_tokens=2048,
+                response_mime_type="application/json",
+            ),
+        )
+        self.counter = DailyCounter()
+        self._last_request_time: float = 0.0
+        logger.info(
+            "🤖 تحلیلگر AI آماده | مدل: %s | مصرف امروز: %d/%d",
+            AI_MODEL, self.counter.used_today(), AI_MAX_PER_DAY,
+        )
 
-    # بررسی سقف روزانه
-    daily_used = _count_today_analyzed(news_list)
-    daily_remaining = AI_MAX_PER_DAY - daily_used
+    # ── API ────────────────────────────────────────────────────
 
-    if daily_remaining <= 0:
-        logger.info(f"[AI] سقف روزانه ({AI_MAX_PER_DAY}) تکمیل شده")
-        return news_list
+    def analyze_batch(
+        self, items: list[FilteredNewsItem]
+    ) -> dict[str, AIResult]:
+        """
+        یک دسته خبر را تحلیل می‌کند:
+        - خلاصه‌سازی AI: برای همه (تا AI_SUMMARY_MAX_PER_RUN)
+        - تحلیل کامل PR: فقط برای بحرانی (تا AI_MAX_PER_RUN)
+        خروجی: dict با کلید uid
+        """
+        results: dict[str, AIResult] = {}
 
-    client     = genai.Client(api_key=GEMINI_API_KEY)
-    run_count  = 0
-    candidates = [n for n in news_list if n.get("critical") and not n.get("ai_analyzed")]
+        if not GEMINI_API_KEY:
+            logger.warning("⚠️ GEMINI_API_KEY تنظیم نشده — تحلیل AI غیرفعال")
+            return results
 
-    logger.info(
-        f"[AI] {len(candidates)} خبر بحرانی یافت شد | "
-        f"سقف اجرا: {AI_MAX_PER_RUN} | "
-        f"باقیمانده روزانه: {daily_remaining}"
-    )
-
-    for item in candidates:
-        if run_count >= AI_MAX_PER_RUN:
-            logger.info(f"[AI] سقف اجرا ({AI_MAX_PER_RUN}) تکمیل شد")
-            break
-        if run_count >= daily_remaining:
-            logger.info(f"[AI] سقف روزانه باقیمانده تکمیل شد")
-            break
-
-        title   = item.get("title", "")
-        summary = item.get("summary", "") or item.get("content", "")
-
-        logger.info(f"[AI] تحلیل: {title[:60]}")
-        result = _analyze_one(client, title, summary)
-
-        if result:
-            item["ai"] = result
-            logger.info(
-                f"[AI ✅] حساسیت={result['sensitivity']} "
-                f"فوریت={result['urgency']}"
+        if not self.counter.can_analyze():
+            logger.warning(
+                "⛔ سقف روزانه AI رسیده (%d/%d)", self.counter.used_today(), AI_MAX_PER_DAY
             )
-        else:
-            item["ai"] = _fallback_analysis(title)
-            logger.warning(f"[AI ⚠️] fallback برای: {title[:50]}")
+            return results
 
-        item["ai_analyzed"] = True
-        run_count += 1
+        # جداسازی بحرانی از معمولی
+        critical_items = [i for i in items if i.critical]
+        normal_items   = [i for i in items if not i.critical]
 
-        # 2 ثانیه delay (rate limit رایگان = 10 درخواست/دقیقه)
-        if run_count < min(AI_MAX_PER_RUN, daily_remaining):
-            time.sleep(2)
+        summary_count   = 0
+        full_analysis   = 0
 
-    logger.info(f"[AI] تکمیل — {run_count} خبر تحلیل شد")
-    return news_list
+        # ۱) تحلیل کامل برای بحرانی (با اولویت)
+        for item in critical_items:
+            if full_analysis >= AI_MAX_PER_RUN:
+                break
+            if not self.counter.can_analyze():
+                break
+            result = self._full_analysis(item)
+            if result:
+                results[item.uid] = result
+                full_analysis += 1
+                self.counter.increment()
+
+        # ۲) خلاصه‌سازی برای بقیه (تا سقف)
+        remaining_budget = AI_SUMMARY_MAX_PER_RUN - len(results)
+        all_for_summary = [i for i in normal_items if i.uid not in results]
+
+        for item in all_for_summary[:remaining_budget]:
+            if not self.counter.can_analyze():
+                break
+            result = self._summarize(item)
+            if result:
+                results[item.uid] = result
+                summary_count += 1
+                self.counter.increment()
+
+        logger.info(
+            "✅ تحلیل AI: %d تحلیل کامل + %d خلاصه | مصرف روزانه: %d/%d",
+            full_analysis, summary_count,
+            self.counter.used_today(), AI_MAX_PER_DAY,
+        )
+        return results
+
+    # ── تحلیل کامل ────────────────────────────────────────────
+
+    def _full_analysis(self, item: FilteredNewsItem) -> Optional[AIResult]:
+        """تحلیل ۹ فیلده PR برای خبر بحرانی"""
+        prompt = self._build_full_prompt(item)
+        raw = self._call_gemini(prompt, item.uid)
+        if not raw:
+            return None
+
+        try:
+            data = json.loads(raw)
+            pr = PRAnalysis(
+                sensitivity   = data.get("sensitivity",   "متوسط"),
+                sentiment      = data.get("sentiment",      "خنثی"),
+                summary        = data.get("summary",        ""),
+                risk_factors   = data.get("risk_factors",   []),
+                action         = data.get("action",         ""),
+                draft_response = data.get("draft_response", ""),
+                stakeholders   = data.get("stakeholders",   []),
+                urgency        = data.get("urgency",        "عادی"),
+                media_risk     = data.get("media_risk",     "پایین"),
+            )
+            return AIResult(
+                uid=item.uid,
+                ai_summary=pr.summary,
+                pr_analysis=pr,
+                analyzed_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.error("❌ parse تحلیل کامل شکست خورد [%s]: %s", item.uid, exc)
+            return None
+
+    def _summarize(self, item: FilteredNewsItem) -> Optional[AIResult]:
+        """خلاصه‌سازی کوتاه برای خبر معمولی"""
+        prompt = self._build_summary_prompt(item)
+        raw = self._call_gemini(prompt, item.uid)
+        if not raw:
+            return None
+
+        try:
+            data = json.loads(raw)
+            summary = data.get("summary", "").strip()
+            if not summary:
+                return None
+            return AIResult(
+                uid=item.uid,
+                ai_summary=summary,
+                pr_analysis=None,
+                analyzed_at=datetime.now(timezone.utc).isoformat(),
+            )
+        except (json.JSONDecodeError, KeyError) as exc:
+            logger.error("❌ parse خلاصه شکست خورد [%s]: %s", item.uid, exc)
+            return None
+
+    # ── Prompt Builder ─────────────────────────────────────────
+
+    @staticmethod
+    def _build_full_prompt(item: FilteredNewsItem) -> str:
+        return f"""
+تو یک متخصص ارشد روابط‌عمومی سازمان حفاظت محیط‌زیست ایران هستی.
+این خبر **بحرانی** است و نیاز به تحلیل فوری دارد.
+
+**عنوان خبر:** {item.title}
+**خلاصه:** {item.summary[:600]}
+**منبع:** {item.source}
+**دسته:** {item.category.name}
+
+یک JSON معتبر با دقیقاً این ۹ کلید برگردان (همه به فارسی):
+
+{{
+  "sensitivity":    "یکی از: خیلی‌بالا / بالا / متوسط / پایین",
+  "sentiment":      "یکی از: منفی / خنثی / مثبت / مختلط",
+  "summary":        "خلاصه تحلیلی ۲-۳ جمله برای مدیران ارشد",
+  "risk_factors":   ["عامل خطر ۱", "عامل خطر ۲", "..."],
+  "action":         "اقدام فوری پیشنهادی (یک جمله)",
+  "draft_response": "پیش‌نویس پاسخ رسمی سازمان (۲-۳ جمله رسمی)",
+  "stakeholders":   ["ذی‌نفع ۱", "ذی‌نفع ۲", "..."],
+  "urgency":        "یکی از: فوری / ۲۴ساعت / هفته‌جاری / عادی",
+  "media_risk":     "یکی از: بالا / متوسط / پایین"
+}}
+
+فقط JSON خالص. بدون توضیح اضافه.
+""".strip()
+
+    @staticmethod
+    def _build_summary_prompt(item: FilteredNewsItem) -> str:
+        return f"""
+تو یک کارشناس خبری سازمان حفاظت محیط‌زیست ایران هستی.
+
+**عنوان:** {item.title}
+**متن:** {item.summary[:400]}
+
+یک JSON با یک کلید برگردان:
+{{
+  "summary": "خلاصه ۱-۲ جمله حرفه‌ای فارسی از این خبر"
+}}
+
+فقط JSON خالص.
+""".strip()
+
+    # ── HTTP Call با Retry ─────────────────────────────────────
+
+    def _call_gemini(
+        self, prompt: str, uid: str, max_retries: int = 3
+    ) -> Optional[str]:
+        """فراخوانی Gemini با rate-limiting و retry"""
+        for attempt in range(1, max_retries + 1):
+            # Rate limiting
+            elapsed = time.time() - self._last_request_time
+            if elapsed < self._MIN_INTERVAL_SECONDS:
+                wait = self._MIN_INTERVAL_SECONDS - elapsed
+                logger.debug("⏳ Rate limit: %.1f ثانیه صبر", wait)
+                time.sleep(wait)
+
+            try:
+                self._last_request_time = time.time()
+                response = self.model.generate_content(prompt)
+                text = response.text.strip()
+
+                # پاک‌سازی markdown اگر وجود داشت
+                if text.startswith("```"):
+                    text = text.split("```")[1]
+                    if text.startswith("json"):
+                        text = text[4:]
+                    text = text.strip()
+
+                logger.debug("✅ Gemini پاسخ داد [%s] (تلاش %d)", uid[:8], attempt)
+                return text
+
+            except Exception as exc:
+                wait = 2 ** attempt  # backoff نمایی: 2, 4, 8
+                logger.warning(
+                    "⚠️ Gemini خطا [%s] تلاش %d/%d: %s — %.0f ثانیه صبر",
+                    uid[:8], attempt, max_retries, exc, wait,
+                )
+                if attempt < max_retries:
+                    time.sleep(wait)
+
+        logger.error("❌ Gemini پس از %d تلاش شکست خورد [%s]", max_retries, uid[:8])
+        return None
+
+
+# ── تابع سطح بالا ─────────────────────────────────────────────
+def analyze_news(items: list[FilteredNewsItem]) -> dict[str, AIResult]:
+    return NewsAnalyzer().analyze_batch(items)
