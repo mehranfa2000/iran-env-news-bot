@@ -1,230 +1,280 @@
-# src/analyzer.py
-"""
-تحلیل هوشمند اخبار با Gemini 2.0-flash
-تحلیل کامل ۹ فیلدی برای خبرهای بحرانی
-خلاصه‌سازی برای خبرهای عادی
-نسخه ۴.۰
-"""
-
+# ╔══════════════════════════════════════════════════════════════════════════════╗
+# ║  src/analyzer.py  ·  v4.1  ·  تحلیل هوش مصنوعی با Gemini                  ║
+# ║  تحلیل کامل ۹ فیلد (بحرانی) · خلاصه ساده (عادی) · fast-fail on 404       ║
+# ╚══════════════════════════════════════════════════════════════════════════════╝
 from __future__ import annotations
 
 import json
 import logging
 import time
+from dataclasses import asdict, dataclass
 from typing import Optional
 
 import google.generativeai as genai
 
-from agent import NewsItem, PRAnalysis
-from config import (
-    GEMINI_API_KEY,
+from src.agent  import NewsItem
+from src.config import (
     AI_MODEL,
+    AI_TEMPERATURE,
     AI_TIMEOUT,
+    GEMINI_API_KEY,
 )
 
-logger = logging.getLogger("analyzer")
+logger = logging.getLogger(__name__)
 
-# ── راه‌اندازی Gemini ──
-if GEMINI_API_KEY:
-    genai.configure(api_key=GEMINI_API_KEY)
-    _model = genai.GenerativeModel(AI_MODEL)
-else:
-    _model = None
-    logger.warning("⚠️ GEMINI_API_KEY تنظیم نشده")
+# ── راه‌اندازی Gemini ─────────────────────────────────────────────────────────
+genai.configure(api_key=GEMINI_API_KEY)
 
-# پرچم قطع سریع
-_model_dead: bool = False
+# ══════════════════════════════════════════════════════════════════════════════
+#  ۱. ساختار تحلیل PR — ۹ فیلد
+# ══════════════════════════════════════════════════════════════════════════════
+
+@dataclass
+class PRAnalysis:
+    """
+    تحلیل کامل روابط‌عمومی برای اخبار بحرانی.
+    ۹ فیلد تخصصی برای مدیریت بحران.
+    """
+    sensitivity:    str   # سطح حساسیت: بالا / متوسط / پایین
+    sentiment:      str   # احساس کلی: منفی / خنثی / مثبت
+    summary:        str   # خلاصه تحلیلی (۲-۳ جمله)
+    risk_factors:   str   # عوامل خطر و تهدیدهای احتمالی
+    action:         str   # اقدام پیشنهادی فوری
+    draft_response: str   # پیش‌نویس پاسخ رسمی سازمان
+    stakeholders:   str   # ذی‌نفعان اصلی (سازمان‌ها، رسانه‌ها، عموم)
+    urgency:        str   # فوریت: فوری / ۲۴ ساعت / هفتگی
+    media_risk:     str   # خطر رسانه‌ای: بالا / متوسط / پایین
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "PRAnalysis":
+        return cls(
+            sensitivity    = data.get("sensitivity",    "نامشخص"),
+            sentiment      = data.get("sentiment",      "خنثی"),
+            summary        = data.get("summary",        ""),
+            risk_factors   = data.get("risk_factors",   ""),
+            action         = data.get("action",         ""),
+            draft_response = data.get("draft_response", ""),
+            stakeholders   = data.get("stakeholders",   ""),
+            urgency        = data.get("urgency",        "۲۴ ساعت"),
+            media_risk     = data.get("media_risk",     "متوسط"),
+        )
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  ۲. متغیر نگهدارنده مدل — یک بار ساخته می‌شود
+# ══════════════════════════════════════════════════════════════════════════════
+
+_model: Optional[genai.GenerativeModel] = None
+_model_dead: bool = False   # اگر True → مدل در دسترس نیست → هیچ درخواستی نزن
 
 
-# ══════════════════════════════════════════════════════════════════
-# تابع فراخوانی Gemini
-# ══════════════════════════════════════════════════════════════════
-
-def _call_gemini(prompt: str) -> Optional[str]:
-    """فراخوانی API با مدیریت خطا — قطع فوری روی 404"""
-    global _model_dead
+def _get_model() -> Optional[genai.GenerativeModel]:
+    """
+    مدل Gemini را برمی‌گرداند.
+    اگر مدل قبلاً 404 داده → بلافاصله None برمی‌گرداند.
+    """
+    global _model, _model_dead
 
     if _model_dead:
-        logger.warning("🚫 مدل مرده است — از تحلیل صرف‌نظر شد")
         return None
 
     if _model is None:
+        _model = genai.GenerativeModel(
+            model_name=AI_MODEL,
+            generation_config=genai.types.GenerationConfig(
+                temperature=AI_TEMPERATURE,
+                response_mime_type="application/json",
+            ),
+        )
+        logger.info("🤖 مدل Gemini بارگذاری شد: %s", AI_MODEL)
+
+    return _model
+
+
+def _mark_model_dead() -> None:
+    """مدل را مرده علامت می‌زند — هیچ درخواست بعدی ارسال نمی‌شود."""
+    global _model_dead
+    _model_dead = True
+    logger.critical(
+        "🚫 مدل '%s' در دسترس نیست — تمام درخواست‌های AI متوقف شد",
+        AI_MODEL
+    )
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  ۳. تابع مرکزی ارسال به Gemini
+# ══════════════════════════════════════════════════════════════════════════════
+
+def _call_gemini(prompt: str) -> Optional[str]:
+    """
+    ارسال یک prompt به Gemini و دریافت پاسخ JSON.
+
+    fast-fail: اگر خطای 404 «no longer available» دریافت شد →
+    بلافاصله None برمی‌گرداند بدون retry.
+    برای سایر خطاها → یک بار retry با تاخیر ۵ ثانیه.
+    """
+    model = _get_model()
+    if model is None:
         return None
 
-    for attempt in range(1, 4):
+    for attempt in range(1, 3):   # حداکثر ۲ بار تلاش
         try:
-            response = _model.generate_content(
+            response = model.generate_content(
                 prompt,
-                generation_config=genai.types.GenerationConfig(
-                    response_mime_type="application/json",
-                    temperature=0.3,
-                    max_output_tokens=2048,
-                ),
                 request_options={"timeout": AI_TIMEOUT},
             )
             return response.text
 
-        except Exception as e:
-            err_str = str(e)
+        except Exception as exc:
+            err_str = str(exc).lower()
 
-            # ── قطع فوری روی 404 (مدل منسوخ) ──
+            # ── fast-fail: مدل حذف شده ──────────────────────────────────────
+            # gemini-2.0-flash از ژوئن ۲۰۲۶ حذف شده و HTTP 404 می‌دهد
             if "404" in err_str and (
                 "no longer available" in err_str
-                or "not found" in err_str.lower()
-                or "deprecated" in err_str.lower()
+                or "not found" in err_str
+                or "deprecated" in err_str
+                or "model" in err_str
             ):
-                logger.critical(
-                    "🚫 مدل '%s' در دسترس نیست (404) — تمام تحلیل‌های این اجرا لغو شد",
-                    AI_MODEL,
-                )
-                _model_dead = True
-                return None
+                _mark_model_dead()
+                return None   # بدون retry
 
-            # ── 429: محدودیت نرخ — ۶۰ ثانیه صبر ──
-            if "429" in err_str or "quota" in err_str.lower() or "rate" in err_str.lower():
-                logger.warning("⏳ محدودیت نرخ Gemini — ۶۰ ثانیه صبر")
-                time.sleep(60)
+            # ── rate limit → صبر کن ─────────────────────────────────────────
+            if "429" in err_str or "quota" in err_str or "rate" in err_str:
+                wait = 10 * attempt
+                logger.warning(
+                    "⏳ rate limit — %d ثانیه صبر (تلاش %d/2)",
+                    wait, attempt
+                )
+                time.sleep(wait)
                 continue
 
-            # ── سایر خطاها — backoff نمایی ──
-            wait = 2 ** attempt
-            logger.warning("⚠️ خطای Gemini (تلاش %d): %s — %ds صبر", attempt, err_str[:80], wait)
-            time.sleep(wait)
+            # ── سایر خطاها ──────────────────────────────────────────────────
+            logger.error("❌ خطای Gemini (تلاش %d/2): %s", attempt, exc)
+            if attempt == 1:
+                time.sleep(5)
 
     return None
 
+# ══════════════════════════════════════════════════════════════════════════════
+#  ۴. تحلیل کامل ۹ فیلد — برای اخبار بحرانی
+# ══════════════════════════════════════════════════════════════════════════════
 
-# ══════════════════════════════════════════════════════════════════
-# خلاصه‌سازی (خبرهای عادی)
-# ══════════════════════════════════════════════════════════════════
+_ANALYZE_PROMPT = """
+تو یک متخصص روابط‌عمومی و مدیریت بحران سازمان حفاظت محیط‌زیست ایران هستی.
+
+خبر زیر را تحلیل کن و خروجی را دقیقاً به فرمت JSON زیر بده:
+
+{{
+  "sensitivity": "سطح حساسیت: بالا یا متوسط یا پایین",
+  "sentiment": "احساس کلی خبر: منفی یا خنثی یا مثبت",
+  "summary": "خلاصه تحلیلی ۲ تا ۳ جمله به فارسی",
+  "risk_factors": "عوامل خطر و تهدیدهای احتمالی برای سازمان",
+  "action": "اقدام فوری پیشنهادی برای سازمان",
+  "draft_response": "پیش‌نویس پاسخ رسمی سازمان به این خبر (۲-۳ جمله رسمی)",
+  "stakeholders": "ذی‌نفعان اصلی: سازمان‌ها، رسانه‌ها، گروه‌های مردمی",
+  "urgency": "فوریت اقدام: فوری یا ۲۴ ساعت یا هفتگی",
+  "media_risk": "خطر رسانه‌ای: بالا یا متوسط یا پایین"
+}}
+
+عنوان خبر: {title}
+منبع: {source}
+خلاصه: {summary}
+
+فقط JSON خالص برگردان. بدون توضیح اضافه.
+"""
+
+
+def analyze_news(item: NewsItem) -> Optional[dict]:
+    """
+    تحلیل کامل ۹ فیلد برای اخبار بحرانی.
+
+    Returns:
+        dict (PRAnalysis.to_dict()) در صورت موفقیت
+        None در صورت خطا یا در دسترس نبودن مدل
+    """
+    logger.info("🧠 تحلیل کامل AI: %s", item.title[:60])
+
+    prompt = _ANALYZE_PROMPT.format(
+        title   = item.title,
+        source  = item.source,
+        summary = item.summary[:400],
+    )
+
+    raw_response = _call_gemini(prompt)
+    if raw_response is None:
+        return None
+
+    try:
+        # پاک‌سازی پاسخ (گاهی Gemini markdown اضافه می‌کند)
+        clean = raw_response.strip()
+        clean = clean.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+
+        data = json.loads(clean)
+        analysis = PRAnalysis.from_dict(data)
+        logger.info("✅ تحلیل AI موفق: %s", item.title[:40])
+        return analysis.to_dict()
+
+    except json.JSONDecodeError as exc:
+        logger.error("❌ خطای JSON در پاسخ Gemini: %s | پاسخ: %s", exc, raw_response[:200])
+        return None
+    except Exception as exc:
+        logger.error("❌ خطا در پردازش پاسخ Gemini: %s", exc)
+        return None
+
+# ══════════════════════════════════════════════════════════════════════════════
+#  ۵. خلاصه ساده — برای اخبار عادی
+# ══════════════════════════════════════════════════════════════════════════════
+
+_SUMMARY_PROMPT = """
+یک خلاصه کوتاه و حرفه‌ای از خبر زیر بنویس.
+خلاصه باید:
+- دقیقاً ۲ جمله باشد
+- به فارسی روان و رسمی
+- نکات کلیدی محیط‌زیستی را برجسته کند
+- بدون هیچ توضیح یا مقدمه اضافه
+
+فقط متن خلاصه را برگردان (بدون JSON، بدون گیومه):
+
+عنوان: {title}
+خلاصه اولیه: {summary}
+"""
+
 
 def summarize_news(item: NewsItem) -> Optional[str]:
-    """تولید خلاصه ۱۵۰ کلمه‌ای برای خبر عادی"""
-    prompt = f"""
-شما دستیار روابط‌عمومی سازمان حفاظت محیط‌زیست ایران هستید.
-یک خلاصه کوتاه و حرفه‌ای (حداکثر ۱۵۰ کلمه) به فارسی برای این خبر بنویسید.
+    """
+    خلاصه ساده ۲ جمله‌ای برای اخبار عادی.
 
-عنوان: {item.title}
-متن: {item.summary[:800]}
-منبع: {item.source}
+    Returns:
+        str در صورت موفقیت
+        None در صورت خطا یا در دسترس نبودن مدل
+    """
+    logger.info("📝 خلاصه AI: %s", item.title[:60])
 
-پاسخ را به صورت JSON با کلید "summary" برگردانید:
-{{"summary": "خلاصه خبر اینجا"}}
-"""
-    raw = _call_gemini(prompt)
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-        return data.get("summary", "").strip() or None
-    except json.JSONDecodeError:
-        # استخراج متن ساده
-        clean = raw.strip().strip('"').strip()
-        return clean[:300] if clean else None
+    prompt = _SUMMARY_PROMPT.format(
+        title   = item.title,
+        summary = item.summary[:400],
+    )
 
-
-# ══════════════════════════════════════════════════════════════════
-# تحلیل کامل ۹ فیلدی (خبرهای بحرانی)
-# ══════════════════════════════════════════════════════════════════
-
-def analyze_critical_news(item: NewsItem) -> Optional[PRAnalysis]:
-    """تحلیل کامل ۹ فیلده روابط‌عمومی برای خبر بحرانی"""
-    prompt = f"""
-شما تحلیل‌گر ارشد روابط‌عمومی سازمان حفاظت محیط‌زیست ایران هستید.
-این خبر بحرانی را تحلیل کامل کنید و پاسخ را دقیقاً به صورت JSON برگردانید.
-
-عنوان: {item.title}
-متن: {item.summary[:1000]}
-منبع: {item.source}
-تاریخ: {item.shamsi_date}
-
-پاسخ JSON (فارسی، دقیق، حرفه‌ای):
-{{
-  "sensitivity": "یکی از: کم | متوسط | بالا | بحرانی",
-  "sentiment": "یکی از: مثبت | منفی | خنثی | مختلط",
-  "summary": "خلاصه تحلیلی ۱۵۰ کلمه",
-  "risk_factors": "عوامل ریسک و خطرات احتمالی",
-  "action": "اقدام فوری پیشنهادی سازمان",
-  "draft_response": "پیش‌نویس پاسخ رسانه‌ای حرفه‌ای",
-  "stakeholders": "ذی‌نفعان اصلی این خبر",
-  "urgency": "یکی از: فوری | ۲۴ ساعت | هفتگی",
-  "media_risk": "یکی از: کم | متوسط | بالا"
-}}
-"""
-    raw = _call_gemini(prompt)
-    if not raw:
-        return None
-    try:
-        data = json.loads(raw)
-        return PRAnalysis(
-            sensitivity=data.get("sensitivity", "متوسط"),
-            sentiment=data.get("sentiment", "خنثی"),
-            summary=data.get("summary", "")[:500],
-            risk_factors=data.get("risk_factors", "")[:300],
-            action=data.get("action", "")[:300],
-            draft_response=data.get("draft_response", "")[:500],
-            stakeholders=data.get("stakeholders", "")[:200],
-            urgency=data.get("urgency", "۲۴ ساعت"),
-            media_risk=data.get("media_risk", "متوسط"),
-        )
-    except json.JSONDecodeError as e:
-        logger.warning("⚠️ خطای JSON در تحلیل بحرانی: %s | raw: %s", e, raw[:100])
+    raw_response = _call_gemini(prompt)
+    if raw_response is None:
         return None
 
+    result = raw_response.strip().strip('"').strip("'").strip()
 
-# ══════════════════════════════════════════════════════════════════
-# کلاس اصلی تحلیل‌گر
-# ══════════════════════════════════════════════════════════════════
+    if len(result) < 10:
+        logger.warning("⚠️ خلاصه AI خیلی کوتاه: %s", result)
+        return None
 
-class NewsAnalyzer:
-    """مدیریت تحلیل هوشمند اخبار"""
+    logger.info("✅ خلاصه AI موفق: %s", item.title[:40])
+    return result[:600]   # حداکثر ۶۰۰ کاراکتر
 
-    def __init__(
-        self,
-        max_critical: int = 5,
-        max_summary: int = 5,
-    ) -> None:
-        self.max_critical = max_critical
-        self.max_summary = max_summary
-        self._critical_count = 0
-        self._summary_count = 0
 
-    def analyze(self, item: NewsItem) -> NewsItem:
-        """تحلیل یک خبر"""
-        global _model_dead
+# ══════════════════════════════════════════════════════════════════════════════
+#  ۶. بررسی وضعیت مدل
+# ══════════════════════════════════════════════════════════════════════════════
 
-        if _model_dead or _model is None:
-            return item
-
-        if item.is_critical and self._critical_count < self.max_critical:
-            logger.info("🧠 تحلیل بحرانی: %s", item.title[:50])
-            pr = analyze_critical_news(item)
-            if pr:
-                item.pr_analysis = pr
-                item.ai_summary = pr.summary
-                self._critical_count += 1
-
-        elif not item.is_critical and self._summary_count < self.max_summary:
-            logger.info("📝 خلاصه‌سازی: %s", item.title[:50])
-            summary = summarize_news(item)
-            if summary:
-                item.ai_summary = summary
-                self._summary_count += 1
-
-        return item
-
-    def analyze_batch(self, items: list[NewsItem]) -> list[NewsItem]:
-        """تحلیل دسته‌ای اخبار"""
-        result = []
-        for item in items:
-            result.append(self.analyze(item))
-            if _model_dead:
-                logger.warning("🛑 مدل مرده — تحلیل دسته‌ای متوقف شد")
-                # بقیه بدون تحلیل اضافه می‌شوند
-                result.extend(items[len(result):])
-                break
-        logger.info(
-            "🤖 تحلیل کامل شد: %d بحرانی، %d خلاصه",
-            self._critical_count, self._summary_count,
-        )
-        return result
+def is_ai_available() -> bool:
+    """بررسی می‌کند آیا مدل AI در دسترس است."""
+    return not _model_dead
