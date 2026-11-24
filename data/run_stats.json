@@ -1,6 +1,5 @@
 {
-  "last_run": "2026-11-24T19:23:05.308325+00:00",
-  "total_runs_stored": 3,
+  "updated_at": "2026-11-24T20:17:56.147136+00:00",
   "runs": [
     {
       "run_id": "b9a602e4",
@@ -49,6 +48,18 @@
       "sent_bale": 30,
       "errors": [],
       "duration_seconds": 866.25
+    },
+    {
+      "run_id": "5d409324",
+      "started_at": "2026-11-24T20:16:06.466086+00:00",
+      "finished_at": "2026-11-24T20:17:56.147103+00:00",
+      "feeds_checked": 14,
+      "items_fetched": 180,
+      "items_filtered": 10,
+      "items_sent": 10,
+      "ai_used": 0,
+      "errors": 0,
+      "duration_sec": 109.68
     }
   ]
 }
