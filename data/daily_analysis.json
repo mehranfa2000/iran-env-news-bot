@@ -1,28 +1,8 @@
 {
-  "generated_at": "02 Azar 1405 — 17:41",
-  "status": "success",
-  "total_news": 9,
-  "critical_count": 0,
-  "category_stats": {
-    "🏛️ سیاست‌ها، قوانین و سازمان محیط زیست": 1,
-    "🌬️ آلودگی هوا، آب و خاک": 3,
-    "🐆 حیات وحش و تنوع زیستی": 2,
-    "🌊 تالاب‌ها، دریاها و منابع آب": 3
-  },
-  "source_stats": {
-    "همشهری": 1,
-    "خبرآنلاین": 2,
-    "ایرنا": 3,
-    "ایمنا": 1,
-    "سلامت نیوز": 2
-  },
-  "overall_risk": "حساس",
-  "executive_summary": "تحلیل در دسترس نیست.",
-  "top_issues": "",
-  "recommendations": "",
-  "media_strategy": "",
-  "urgent_actions": "",
-  "positive_points": "",
-  "stakeholders": "",
-  "news_analyses": []
+  "generated_at": "2026-11-24T20:47:12.396781+00:00",
+  "shamsi_date": "1405/09/03",
+  "news_count": 10,
+  "report": {
+    "error": "404 This model models/gemini-2.0-flash is no longer available. Please update your code to use models/gemini-3.8-flash for the latest features and improvements. We recommend you to use the Interactions API (https://aistudio.google.com/docs/get-started)."
+  }
 }
