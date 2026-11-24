@@ -1,213 +1,179 @@
 """
-سامانه پایش اخبار محیط‌زیست ایران
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-جریان اصلی:
-  1) جمع‌آوری از 11 فید RSS
-  2) فیلتر 3 لایه (blacklist → score → category+critical)
-  3) حذف تکراری‌ها (link dedup از news.json)
-  4) تحلیل AI فقط برای اخبار بحرانی (≤2/اجرا، ≤15/روز)
-  5) ارسال به تلگرام + بله
-  6) ذخیره در data/news.json
+main.py — v4.0
+ارکستراتور اصلی ایجنت هوشمند محیط‌زیست
+جریان ۸ مرحله‌ای:
+  ۱. اعتبارسنجی تنظیمات
+  ۲. بارگذاری اخبار قبلی
+  ۳. جمع‌آوری موازی از ۱۴ فید
+  ۴. فیلتر ۴ لایه
+  ۵. تحلیل هوش مصنوعی (خلاصه + بحرانی)
+  ۶. ساخت NewsItem و ذخیره‌سازی
+  ۷. ارسال به تلگرام و بله
+  ۸. ذخیره آمار و commit
 """
 
-import json
+from __future__ import annotations
+
 import logging
-import os
+import sys
 import time
-from datetime import datetime, date
-from pathlib import Path
+import uuid
+from datetime import datetime, timezone
 
-import jdatetime
-
+from src.config import validate_config, MAX_NEWS_PER_RUN
 from src.collector import collect_all_feeds
-from src.filter    import filter_news
-from src.analyzer  import analyze_batch
-from src.sender    import send_to_telegram, send_to_bale
-from src.config    import (
-    MAX_NEWS_PER_RUN, MAX_STORED_NEWS,
-    DELAY_BETWEEN_SENDS, BOT_SIGNATURE,
-    AI_ENABLED,
+from src.filter import filter_news
+from src.analyzer import analyze_news
+from src.sender import send_news
+from src.agent import (
+    NewsItem,
+    StorageManager,
+    RunStats,
+    RunStatsManager,
 )
 
-# ───────────────────────────────────────────
-# لاگ‌گذاری
-# ───────────────────────────────────────────
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
 logger = logging.getLogger("main")
 
-DATA_PATH = Path("data/news.json")
 
+def run_agent() -> int:
+    """
+    اجرای کامل ایجنت.
+    خروجی: کد خروج (0=موفق، 1=خطای جدی)
+    """
+    start_time = time.time()
+    run_id = str(uuid.uuid4())[:8]
 
-# ───────────────────────────────────────────
-# ابزارهای کمکی
-# ───────────────────────────────────────────
-def load_news() -> list[dict]:
-    if DATA_PATH.exists():
-        try:
-            return json.loads(DATA_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return []
-
-
-def save_news(news_list: list[dict]) -> None:
-    DATA_PATH.parent.mkdir(parents=True, exist_ok=True)
-    # مرتب‌سازی بر اساس تاریخ (جدیدترین اول)
-    news_list.sort(key=lambda x: x.get("date", ""), reverse=True)
-    # حفظ حداکثر MAX_STORED_NEWS خبر
-    news_list = news_list[:MAX_STORED_NEWS]
-    DATA_PATH.write_text(
-        json.dumps(news_list, ensure_ascii=False, indent=2),
-        encoding="utf-8",
+    stats = RunStats(
+        run_id=run_id,
+        started_at=datetime.now(timezone.utc).isoformat(),
     )
-    logger.info(f"[save] {len(news_list)} خبر ذخیره شد")
 
+    logger.info("=" * 60)
+    logger.info("🚀 ایجنت محیط‌زیست v4.0 — شروع اجرا [%s]", run_id)
+    logger.info("=" * 60)
 
-def to_shamsi(dt_str: str) -> str:
-    """تبدیل تاریخ میلادی به شمسی"""
-    try:
-        dt = datetime.fromisoformat(dt_str)
-        jd = jdatetime.datetime.fromgregorian(datetime=dt)
-        return jd.strftime("%d %B %Y")
-    except Exception:
-        jd = jdatetime.date.today()
-        return jd.strftime("%d %B %Y")
+    # ── مرحله ۱: اعتبارسنجی ──────────────────────────────────
+    logger.info("⚙️  مرحله ۱/۸: اعتبارسنجی تنظیمات")
+    if not validate_config():
+        logger.critical("❌ تنظیمات ناقص است — ایجنت متوقف شد")
+        return 1
 
+    # ── مرحله ۲: بارگذاری ذخیره‌سازی ─────────────────────────
+    logger.info("📂 مرحله ۲/۸: بارگذاری اخبار قبلی")
+    storage = StorageManager()
+    known_uids = storage.known_uids
+    logger.info("   %d خبر قبلی در حافظه", len(known_uids))
 
-def build_message(item: dict) -> str:
-    """ساخت پیام برای تلگرام/بله"""
-    category  = item.get("category", "🏛️ محیط زیست")
-    title     = item.get("title", "")
-    source    = item.get("source", "")
-    link      = item.get("link", "")
-    date_str  = to_shamsi(item.get("date", ""))
-    summary   = item.get("summary", "")[:200].strip()
-    ai        = item.get("ai")
+    # ── مرحله ۳: جمع‌آوری ─────────────────────────────────────
+    logger.info("📡 مرحله ۳/۸: جمع‌آوری از ۱۴ فید RSS")
+    raw_items = collect_all_feeds()
+    stats.raw_collected = len(raw_items)
+    stats.feeds_fetched = len(set(i.source for i in raw_items))
+    logger.info("   %d خبر خام از %d منبع", stats.raw_collected, stats.feeds_fetched)
 
-    # بخش اصلی پیام
-    lines = [
-        f"{category}",
-        f"",
-        f"📰 *{title}*",
-        f"",
-        f"📝 {summary}",
-        f"",
-        f"📅 {date_str} | 🗞 {source}",
-        f"🔗 {link}",
+    if not raw_items:
+        logger.warning("⚠️ هیچ خبری دریافت نشد — پایان اجرا")
+        _finish(stats, start_time, storage)
+        return 0
+
+    # ── مرحله ۴: فیلتر ───────────────────────────────────────
+    logger.info("🔍 مرحله ۴/۸: فیلتر ۴ لایه")
+    filtered_items = filter_news(raw_items, known_uids)
+    stats.after_filter = len(filtered_items)
+    stats.critical_count = sum(1 for i in filtered_items if i.critical)
+    logger.info(
+        "   %d خبر محیط‌زیستی (%d بحرانی)",
+        stats.after_filter, stats.critical_count,
+    )
+
+    if not filtered_items:
+        logger.info("ℹ️ خبر جدید محیط‌زیستی یافت نشد")
+        _finish(stats, start_time, storage)
+        return 0
+
+    # محدود کردن به MAX_NEWS_PER_RUN (جدیدترین اول)
+    new_items_to_send = filtered_items[:MAX_NEWS_PER_RUN]
+    logger.info(
+        "   ارسال %d خبر (از %d فیلترشده)",
+        len(new_items_to_send), len(filtered_items),
+    )
+
+    # ── مرحله ۵: تحلیل AI ────────────────────────────────────
+    logger.info("🤖 مرحله ۵/۸: تحلیل هوش مصنوعی")
+    ai_results = analyze_news(new_items_to_send)
+    stats.ai_analyzed  = sum(1 for r in ai_results.values() if r.pr_analysis)
+    stats.ai_summarized = sum(1 for r in ai_results.values() if not r.pr_analysis)
+    logger.info(
+        "   %d تحلیل کامل + %d خلاصه‌سازی",
+        stats.ai_analyzed, stats.ai_summarized,
+    )
+
+    # ── مرحله ۶: ساخت و ذخیره NewsItem ───────────────────────
+    logger.info("💾 مرحله ۶/۸: ساخت و ذخیره اخبار")
+    news_items: list[NewsItem] = []
+    for fi in new_items_to_send:
+        ai_res = ai_results.get(fi.uid)
+        ni = NewsItem.from_filtered(fi, ai_res)
+        news_items.append(ni)
+
+    added_count = storage.add_items(news_items)
+    stats.new_items = added_count
+    logger.info("   %d خبر جدید ذخیره شد", added_count)
+
+    # ── مرحله ۷: ارسال ───────────────────────────────────────
+    logger.info("📤 مرحله ۷/۸: ارسال به تلگرام و بله")
+
+    # فقط خبرهایی که واقعاً جدید بودند
+    items_to_send = [
+        fi for fi in new_items_to_send
+        if fi.uid in {ni.uid for ni in news_items}
     ]
 
-    # بخش مشاوره AI (فقط برای اخبار بحرانی تحلیل‌شده)
-    if ai:
-        sensitivity = ai.get("sensitivity", "")
-        emoji       = ai.get("sensitivity_emoji", "🔵")
-        urgency     = ai.get("urgency", "")
-        action      = ai.get("action", "")
-        draft       = ai.get("draft_response", "")
+    send_results = send_news(items_to_send, ai_results)
 
-        lines += [
-            f"",
-            f"━━━━━━━━━━━━━━━━━━━━",
-            f"🤖 *تحلیل روابط‌عمومی*",
-            f"{emoji} حساسیت: {sensitivity} | ⏰ فوریت: {urgency}",
-            f"",
-            f"💡 *اقدام پیشنهادی:* {action}",
-            f"",
-            f"📋 *پیش‌نویس پاسخ رسمی:*",
-            f"_{draft}_",
-        ]
+    # به‌روزرسانی وضعیت ارسال در storage
+    for sr in send_results:
+        storage.update_send_status(sr.uid, sr.telegram_ok, sr.bale_ok)
 
-    lines += [f"", f"—", f"{BOT_SIGNATURE}"]
-    return "\n".join(lines)
+    stats.sent_telegram = sum(1 for r in send_results if r.telegram_ok)
+    stats.sent_bale     = sum(1 for r in send_results if r.bale_ok)
+    logger.info(
+        "   تلگرام: %d/%d ✅ | بله: %d/%d ✅",
+        stats.sent_telegram, len(send_results),
+        stats.sent_bale, len(send_results),
+    )
+
+    # ── مرحله ۸: ذخیره نهایی ─────────────────────────────────
+    logger.info("💽 مرحله ۸/۸: ذخیره‌سازی نهایی")
+    _finish(stats, start_time, storage)
+
+    logger.info("=" * 60)
+    logger.info("✅ ایجنت با موفقیت پایان یافت [%s] | ⏱ %.1f ثانیه", run_id, stats.duration_seconds)
+    logger.info("=" * 60)
+    return 0
 
 
-# ───────────────────────────────────────────
-# جریان اصلی
-# ───────────────────────────────────────────
-def main() -> None:
-    start_time = time.time()
-    logger.info("=" * 50)
-    logger.info("🌿 سامانه پایش اخبار محیط‌زیست — شروع اجرا")
-    logger.info("=" * 50)
+def _finish(stats: RunStats, start_time: float, storage: StorageManager) -> None:
+    """ذخیره نهایی داده‌ها و آمار"""
+    stats.finished_at     = datetime.now(timezone.utc).isoformat()
+    stats.duration_seconds = round(time.time() - start_time, 2)
 
-    # مرحله ۱: بارگذاری اخبار قبلی
-    existing_news  = load_news()
-    existing_links = {n["link"] for n in existing_news if "link" in n}
-    logger.info(f"[load] {len(existing_news)} خبر موجود | {len(existing_links)} لینک یکتا")
+    try:
+        storage.save()
+    except Exception as exc:
+        logger.error("❌ خطا در ذخیره news.json: %s", exc)
+        stats.errors.append(f"storage_save: {exc}")
 
-    # مرحله ۲: جمع‌آوری
-    logger.info("[collect] شروع جمع‌آوری از فیدها...")
-    raw_items = collect_all_feeds()
-    logger.info(f"[collect] {len(raw_items)} آیتم خام دریافت شد")
-
-    # مرحله ۳: فیلتر + حذف تکراری
-    new_news = []
-    seen_in_run = set()
-
-    for item in raw_items:
-        link = item.get("link", "")
-        if not link or link in existing_links or link in seen_in_run:
-            continue
-
-        feed_url = item.get("feed_url", "")
-        filtered = filter_news([item], feed_url)
-
-        if filtered:
-            filtered[0]["date"] = filtered[0].get("date") or datetime.now().isoformat()
-            new_news.append(filtered[0])
-            seen_in_run.add(link)
-
-        if len(new_news) >= MAX_NEWS_PER_RUN:
-            break
-
-    logger.info(f"[filter] {len(new_news)} خبر جدید پس از فیلتر")
-
-    if not new_news:
-        logger.info("[done] خبر جدیدی یافت نشد.")
-        return
-
-    # مرحله ۴: تحلیل AI (فقط بحرانی‌ها)
-    critical_count = sum(1 for n in new_news if n.get("critical"))
-    logger.info(f"[AI] {critical_count} خبر بحرانی از {len(new_news)} خبر جدید")
-
-    if AI_ENABLED and critical_count > 0:
-        new_news = analyze_batch(new_news)
-    else:
-        logger.info("[AI] غیرفعال یا بدون خبر بحرانی")
-
-    # مرحله ۵: ارسال به کانال‌ها
-    sent_count = 0
-    for item in new_news:
-        message = build_message(item)
-        t_ok    = send_to_telegram(message)
-        b_ok    = send_to_bale(message)
-
-        if t_ok or b_ok:
-            item["sent"] = True
-            sent_count  += 1
-            logger.info(f"[send ✅] T={t_ok} B={b_ok} | {item['title'][:50]}")
-        else:
-            item["sent"] = False
-            logger.warning(f"[send ❌] {item['title'][:50]}")
-
-        time.sleep(DELAY_BETWEEN_SENDS)
-
-    # مرحله ۶: ذخیره‌سازی
-    all_news = new_news + existing_news
-    save_news(all_news)
-
-    elapsed = round(time.time() - start_time, 1)
-    ai_analyzed = sum(1 for n in new_news if n.get("ai_analyzed"))
-
-    logger.info("=" * 50)
-    logger.info(f"✅ اتمام | زمان: {elapsed}s")
-    logger.info(f"📊 جمع‌آوری: {len(raw_items)} | فیلتر: {len(new_news)} | ارسال: {sent_count}")
-    logger.info(f"🤖 تحلیل AI: {ai_analyzed} خبر بحرانی")
-    logger.info("=" * 50)
+    try:
+        RunStatsManager().save_run(stats)
+    except Exception as exc:
+        logger.error("❌ خطا در ذخیره run_stats.json: %s", exc)
 
 
 if __name__ == "__main__":
-    main()
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)-8s | %(name)-20s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    sys.exit(run_agent())
