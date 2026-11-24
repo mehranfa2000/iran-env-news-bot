@@ -1,65 +1,17 @@
-{
-  "updated_at": "2026-11-24T20:17:56.147136+00:00",
-  "runs": [
-    {
-      "run_id": "b9a602e4",
-      "started_at": "2026-11-24T19:23:05.308325+00:00",
-      "finished_at": "2026-11-24T19:38:01.267110+00:00",
-      "feeds_fetched": 11,
-      "raw_collected": 274,
-      "after_filter": 39,
-      "new_items": 30,
-      "critical_count": 26,
-      "ai_analyzed": 0,
-      "ai_summarized": 0,
-      "sent_telegram": 30,
-      "sent_bale": 30,
-      "errors": [],
-      "duration_seconds": 895.96
-    },
-    {
-      "run_id": "207f965a",
-      "started_at": "2026-11-24T15:06:17.020211+00:00",
-      "finished_at": "2026-11-24T15:20:48.705691+00:00",
-      "feeds_fetched": 10,
-      "raw_collected": 273,
-      "after_filter": 65,
-      "new_items": 30,
-      "critical_count": 47,
-      "ai_analyzed": 0,
-      "ai_summarized": 0,
-      "sent_telegram": 30,
-      "sent_bale": 30,
-      "errors": [],
-      "duration_seconds": 871.69
-    },
-    {
-      "run_id": "73759c43",
-      "started_at": "2026-11-24T14:21:05.659351+00:00",
-      "finished_at": "2026-11-24T14:35:31.905623+00:00",
-      "feeds_fetched": 10,
-      "raw_collected": 273,
-      "after_filter": 95,
-      "new_items": 30,
-      "critical_count": 65,
-      "ai_analyzed": 0,
-      "ai_summarized": 0,
-      "sent_telegram": 30,
-      "sent_bale": 30,
-      "errors": [],
-      "duration_seconds": 866.25
-    },
-    {
-      "run_id": "5d409324",
-      "started_at": "2026-11-24T20:16:06.466086+00:00",
-      "finished_at": "2026-11-24T20:17:56.147103+00:00",
-      "feeds_checked": 14,
-      "items_fetched": 180,
-      "items_filtered": 10,
-      "items_sent": 10,
-      "ai_used": 0,
-      "errors": 0,
-      "duration_sec": 109.68
-    }
-  ]
-}
+[
+  {
+    "run_id": "567751c9",
+    "start_time": "2026-11-24T21:19:02.924042+00:00",
+    "end_time": "2026-11-24T21:28:31.131758+00:00",
+    "duration_seconds": 568.21,
+    "total_collected": 312,
+    "new_articles": 312,
+    "filtered_articles": 200,
+    "ai_analyzed": 5,
+    "ai_summarized": 0,
+    "sent_count": 30,
+    "failed_count": 0,
+    "success": true,
+    "error_message": ""
+  }
+]
