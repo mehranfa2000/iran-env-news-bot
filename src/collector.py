@@ -1,342 +1,358 @@
 """
-جمع‌آوری پیشرفته از 11 فید RSS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- User-Agent rotation (20 عامل)
-- Retry با backoff نمایی
-- پشتیبانی از فیدهای 403 با headers خاص
-- تشخیص خودکار encoding
-- پاکسازی HTML و متن
-- timeout تطبیقی
+collector.py — v4.0
+جمع‌آوری موازی خبرها از ۱۴ فید RSS
+قابلیت جدید: استخراج تصویر از خبر (enclosure / media:content / og:image)
 """
 
+from __future__ import annotations
+import hashlib
 import logging
+import random
 import re
 import time
-import random
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
+from urllib.parse import urlparse, urljoin
 
 import feedparser
 import requests
 from bs4 import BeautifulSoup
 
-logger = logging.getLogger(__name__)
+from src.config import (
+    FEEDS,
+    FeedConfig,
+    COLLECTOR_MAX_WORKERS,
+    COLLECTOR_TIMEOUT,
+    COLLECTOR_MAX_RETRIES,
+    FEED_MAX_ENTRIES,
+)
 
-# ═══════════════════════════════════════════
-# User-Agent های متنوع (مرورگر + موبایل)
-# ═══════════════════════════════════════════
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 18_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (Android 14; Mobile; rv:132.0) Gecko/132.0 Firefox/132.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/131.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:132.0) Gecko/20100101 Firefox/132.0",
-    "Googlebot/2.1 (+http://www.google.com/bot.html)",
+logger = logging.getLogger("collector")
+
+# ═══════════════════════════════════════════════════════════════
+# ۱) ساختار داده خبر خام
+# ═══════════════════════════════════════════════════════════════
+@dataclass
+class RawNewsItem:
+    uid: str                        # شناسه یکتا (hash لینک)
+    title: str
+    summary: str
+    link: str
+    source: str
+    published_dt: datetime          # زمان انتشار (UTC)
+    image_url: Optional[str]        = None
+    feed_dedicated: bool            = True
+    feed_priority: int              = 1
+    raw_tags: list[str]             = field(default_factory=list)
+    fetch_method: str               = "unknown"
+
+    @staticmethod
+    def make_uid(link: str) -> str:
+        return hashlib.sha256(link.strip().encode()).hexdigest()[:16]
+
+
+# ═══════════════════════════════════════════════════════════════
+# ۲) User-Agent های مختلف برای bypass
+# ═══════════════════════════════════════════════════════════════
+USER_AGENTS: list[str] = [
+    # Googlebot — بیشترین موفقیت
     "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-    "Mozilla/5.0 (compatible; Bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+    # feedfetcher
     "feedfetcher-google; (+http://www.google.com/feedfetcher.html)",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36 OPR/116.0.0.0",
+    # Chrome 131
+    ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+     "AppleWebKit/537.36 (KHTML, like Gecko) "
+     "Chrome/131.0.0.0 Safari/537.36"),
+    # Firefox 132
+    ("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) "
+     "Gecko/20100101 Firefox/132.0"),
+    # Safari 18
+    ("Mozilla/5.0 (Macintosh; Intel Mac OS X 14_6) "
+     "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+     "Version/18.0 Safari/605.1.15"),
+    # RSS Reader
+    "Feedly/1.0 (+http://www.feedly.com/fetcher.html)",
 ]
 
-# ═══════════════════════════════════════════
-# فیدهای RSS با تنظیمات خاص هر منبع
-# ═══════════════════════════════════════════
-FEEDS = [
-    {
-        "url":    "https://www.irna.ir/rss/tp/32",
-        "name":   "ایرنا",
-        "type":   "dedicated",
-        "referer":"https://www.irna.ir",
-        "timeout": 20,
-    },
-    {
-        "url":    "https://www.mehrnews.com/rss/tp/64",
-        "name":   "مهر",
-        "type":   "dedicated",
-        "referer":"https://www.mehrnews.com",
-        "timeout": 20,
-    },
-    {
-        "url":    "https://www.hamshahrionline.ir/rss/tp/584",
-        "name":   "همشهری",
-        "type":   "dedicated",
-        "referer":"https://www.hamshahrionline.ir",
-        "timeout": 20,
-    },
-    {
-        "url":    "https://www.khabaronline.ir/rss/tp/44",
-        "name":   "خبرآنلاین",
-        "type":   "dedicated",
-        "referer":"https://www.khabaronline.ir",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.imna.ir/rss/tp/153",
-        "name":   "ایمنا",
-        "type":   "dedicated",
-        "referer":"https://www.imna.ir",
-        "timeout": 20,
-    },
-    {
-        "url":    "https://www.ettelaat.com/rss/tp/65",
-        "name":   "اطلاعات",
-        "type":   "dedicated",
-        "referer":"https://www.ettelaat.com",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.iribnews.ir/fa/rss/7/39",
-        "name":   "صدا و سیما",
-        "type":   "dedicated",
-        "referer":"https://www.iribnews.ir",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.iribnews.ir/fa/rss/6/8",
-        "name":   "صدا و سیما آب",
-        "type":   "dedicated",
-        "referer":"https://www.iribnews.ir",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.salamatnews.com/rss/tp/11",
-        "name":   "سلامت نیوز",
-        "type":   "dedicated",
-        "referer":"https://www.salamatnews.com",
-        "timeout": 20,
-    },
-    {
-        "url":    "https://www.isna.ir/rss",
-        "name":   "ایسنا",
-        "type":   "general",
-        "referer":"https://www.isna.ir",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.yjc.ir/fa/rss/5/74",
-        "name":   "باشگاه خبرنگاران",
-        "type":   "dedicated",
-        "referer":"https://www.yjc.ir",
-        "timeout": 20,
-        "skip_403": True,
-    },
-]
+# ═══════════════════════════════════════════════════════════════
+# ۳) کلاس AdaptiveFetcher — دریافت هوشمند RSS
+# ═══════════════════════════════════════════════════════════════
+class AdaptiveFetcher:
+    """
+    دریافت فید RSS با چندین استراتژی موازی + fallback.
+    برای هر فید، تا COLLECTOR_MAX_RETRIES بار تلاش می‌کند.
+    """
 
-# فیدهای جایگزین (پشتیبان)
-BACKUP_FEEDS = [
-    {
-        "url":    "https://www.isna.ir/rss/tp/13",
-        "name":   "ایسنا محیط زیست",
-        "type":   "dedicated",
-        "referer":"https://www.isna.ir",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.farsnews.ir/rss/tp/13",
-        "name":   "فارس محیط زیست",
-        "type":   "dedicated",
-        "referer":"https://www.farsnews.ir",
-        "timeout": 25,
-    },
-    {
-        "url":    "https://www.tasnimnews.com/fa/rss/feed/0/8/0",
-        "name":   "تسنیم",
-        "type":   "dedicated",
-        "referer":"https://www.tasnimnews.com",
-        "timeout": 25,
-    },
-]
+    def __init__(self, session: Optional[requests.Session] = None):
+        self.session = session or self._make_session()
 
+    @staticmethod
+    def _make_session() -> requests.Session:
+        s = requests.Session()
+        s.headers.update({
+            "Accept": "application/rss+xml, application/xml, text/xml, */*",
+            "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+            "Accept-Encoding": "gzip, deflate",
+            "Connection": "keep-alive",
+        })
+        return s
 
-# ═══════════════════════════════════════════
-# ابزارهای کمکی
-# ═══════════════════════════════════════════
-def _build_headers(referer: str = "", ua: str = "") -> dict:
-    return {
-        "User-Agent":      ua or random.choice(USER_AGENTS),
-        "Accept":          "application/rss+xml, application/xml, text/xml, */*",
-        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection":      "keep-alive",
-        "Cache-Control":   "no-cache",
-        "Referer":         referer or "https://www.google.com",
-        "DNT":             "1",
-    }
+    def fetch(self, feed: FeedConfig) -> list[RawNewsItem]:
+        """
+        یک فید را دریافت و parse می‌کند.
+        در صورت خطا، با UA متفاوت تلاش مجدد می‌کند.
+        """
+        last_error: Optional[Exception] = None
 
+        # ترتیب تلاش‌ها: http request → feedparser direct
+        strategies = [
+            ("http_request", lambda ua: self._fetch_via_requests(feed.url, ua)),
+            ("feedparser_direct", lambda ua: self._fetch_via_feedparser(feed.url, ua)),
+        ]
 
-def _clean_html(text: str) -> str:
-    if not text:
-        return ""
-    if "<" in text and ">" in text:
-        try:
-            soup = BeautifulSoup(text, "lxml")
-            text = soup.get_text(separator=" ")
-        except Exception:
-            text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
-    return text[:1000]
-
-
-def _parse_date(entry) -> str:
-    for field in ("published_parsed", "updated_parsed", "created_parsed"):
-        t = getattr(entry, field, None)
-        if t:
+        for attempt, (method, fetch_fn) in enumerate(strategies):
+            ua = random.choice(USER_AGENTS)
             try:
-                dt = datetime(*t[:6], tzinfo=timezone.utc)
-                return dt.isoformat()
-            except Exception:
-                pass
-    return datetime.now(timezone.utc).isoformat()
+                items = fetch_fn(ua)
+                if items:
+                    logger.info("✅ [%s] %d خبر | روش: %s", feed.name, len(items), method)
+                    for item in items:
+                        item.fetch_method = method
+                        item.feed_dedicated = feed.dedicated
+                        item.feed_priority = feed.priority
+                        item.source = feed.name
+                    return items
+            except Exception as exc:
+                last_error = exc
+                logger.debug("⚠️ [%s] تلاش %d شکست خورد: %s", feed.name, attempt + 1, exc)
+                time.sleep(1.5)
 
+        if feed.skip_on_error:
+            logger.warning("⏭️ [%s] رد شد (skip_on_error=True)", feed.name)
+            return []
 
-def _fetch_feed_content(feed_config: dict) -> Optional[bytes]:
-    """دریافت محتوای فید با چندین تلاش و User-Agent مختلف"""
-    url     = feed_config["url"]
-    timeout = feed_config.get("timeout", 20)
-    referer = feed_config.get("referer", "")
+        logger.error("❌ [%s] همه روش‌ها شکست خوردند: %s", feed.name, last_error)
+        return []
 
-    # ترتیب تلاش: Googlebot → Chrome → Firefox → Safari
-    agents_to_try = [
-        "feedfetcher-google; (+http://www.google.com/feedfetcher.html)",
-        "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0",
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.1 Safari/605.1.15",
-    ]
-
-    for attempt, ua in enumerate(agents_to_try, 1):
-        try:
-            headers  = _build_headers(referer, ua)
-            session  = requests.Session()
-            response = session.get(url, headers=headers, timeout=timeout, allow_redirects=True)
-
-            if response.status_code == 200:
-                logger.info(f"[{feed_config['name']}] ✅ موفق (attempt={attempt}, ua={ua[:30]})")
-                return response.content
-
-            if response.status_code == 403:
-                if feed_config.get("skip_403"):
-                    logger.warning(f"[{feed_config['name']}] 403 — رد شد")
-                    return None
-                logger.warning(f"[{feed_config['name']}] 403 — تلاش با UA دیگر...")
-                time.sleep(1)
-                continue
-
-            if response.status_code in (301, 302):
-                new_url = response.headers.get("Location", "")
-                if new_url:
-                    logger.info(f"[{feed_config['name']}] redirect → {new_url}")
-                    response = session.get(new_url, headers=headers, timeout=timeout)
-                    if response.status_code == 200:
-                        return response.content
-
-            logger.warning(f"[{feed_config['name']}] status={response.status_code}")
-
-        except requests.Timeout:
-            logger.warning(f"[{feed_config['name']}] timeout (attempt={attempt})")
-        except requests.ConnectionError as e:
-            logger.warning(f"[{feed_config['name']}] connection error: {e}")
-        except Exception as e:
-            logger.warning(f"[{feed_config['name']}] خطا: {e}")
-
-        if attempt < len(agents_to_try):
-            time.sleep(random.uniform(1, 3))
-
-    return None
-
-
-def _parse_entries(content: bytes, feed_config: dict) -> list[dict]:
-    """تجزیه محتوای فید به آیتم‌های ساختاریافته"""
-    try:
+    def _fetch_via_requests(self, url: str, ua: str) -> list[RawNewsItem]:
+        """دریافت محتوا با requests و parse با feedparser"""
+        resp = self.session.get(
+            url,
+            headers={"User-Agent": ua},
+            timeout=COLLECTOR_TIMEOUT,
+            allow_redirects=True,
+        )
+        resp.raise_for_status()
+        content = resp.content
         parsed = feedparser.parse(content)
-    except Exception as e:
-        logger.error(f"[{feed_config['name']}] خطای parse: {e}")
-        return []
+        if parsed.bozo and not parsed.entries:
+            raise ValueError(f"feedparser bozo: {parsed.bozo_exception}")
+        return self._parse_entries(parsed, url)
 
-    if not parsed.entries:
-        logger.warning(f"[{feed_config['name']}] هیچ آیتمی یافت نشد")
-        return []
+    def _fetch_via_feedparser(self, url: str, ua: str) -> list[RawNewsItem]:
+        """دریافت مستقیم با feedparser"""
+        parsed = feedparser.parse(
+            url,
+            agent=ua,
+            request_headers={"Accept": "application/rss+xml, */*"},
+        )
+        if parsed.bozo and not parsed.entries:
+            raise ValueError(f"feedparser bozo: {parsed.bozo_exception}")
+        return self._parse_entries(parsed, url)
 
-    items = []
-    for entry in parsed.entries[:30]:
+    def _parse_entries(
+        self, parsed: feedparser.FeedParserDict, base_url: str
+    ) -> list[RawNewsItem]:
+        """تبدیل entries فید به RawNewsItem"""
+        items: list[RawNewsItem] = []
+        entries = parsed.entries[:FEED_MAX_ENTRIES]
+
+        for entry in entries:
+            try:
+                item = self._entry_to_item(entry, base_url)
+                if item:
+                    items.append(item)
+            except Exception as exc:
+                logger.debug("خطا در parse entry: %s", exc)
+
+        return items
+
+    def _entry_to_item(
+        self, entry: feedparser.util.FeedParserDict, base_url: str
+    ) -> Optional[RawNewsItem]:
+        """یک entry فید را به RawNewsItem تبدیل می‌کند."""
         # عنوان
-        title = _clean_html(getattr(entry, "title", "") or "")
-        if not title or len(title) < 5:
-            continue
+        title = self._clean_text(getattr(entry, "title", "") or "")
+        if not title:
+            return None
 
         # لینک
-        link = getattr(entry, "link", "") or ""
+        link = (getattr(entry, "link", "") or "").strip()
         if not link:
-            continue
+            return None
+        link = self._normalize_url(link, base_url)
 
         # خلاصه
-        summary = ""
-        for field in ("summary", "description", "content"):
-            val = getattr(entry, field, None)
-            if val:
-                if isinstance(val, list) and val:
-                    val = val[0].get("value", "") if isinstance(val[0], dict) else str(val[0])
-                summary = _clean_html(str(val))
-                if summary:
-                    break
+        summary_raw = (
+            getattr(entry, "summary", "")
+            or getattr(entry, "description", "")
+            or ""
+        )
+        summary = self._clean_text(summary_raw, strip_html=True)
 
-        items.append({
-            "title":    title,
-            "link":     link,
-            "summary":  summary,
-            "content":  summary,
-            "date":     _parse_date(entry),
-            "source":   feed_config["name"],
-            "feed_url": feed_config["url"],
-            "feed_type":feed_config.get("type","general"),
-        })
+        # زمان انتشار
+        published_dt = self._parse_date(entry)
 
-    logger.info(f"[{feed_config['name']}] {len(items)} آیتم استخراج شد")
-    return items
+        # تصویر
+        image_url = self._extract_image(entry, summary_raw)
+
+        # برچسب‌ها
+        tags: list[str] = []
+        for tag in getattr(entry, "tags", []):
+            term = getattr(tag, "term", "") or ""
+            if term:
+                tags.append(term.strip())
+
+        return RawNewsItem(
+            uid=RawNewsItem.make_uid(link),
+            title=title[:300],
+            summary=summary[:800],
+            link=link,
+            source="",          # بعداً توسط fetch() پر می‌شود
+            published_dt=published_dt,
+            image_url=image_url,
+            raw_tags=tags,
+            feed_dedicated=True,
+            feed_priority=1,
+        )
+
+    # ── ابزارهای کمکی ────────────────────────────────────────
+
+    @staticmethod
+    def _clean_text(text: str, strip_html: bool = False) -> str:
+        """پاک‌سازی متن از HTML و whitespace اضافه"""
+        if not text:
+            return ""
+        if strip_html and ("<" in text and ">" in text):
+            try:
+                text = BeautifulSoup(text, "html.parser").get_text(separator=" ")
+            except Exception:
+                text = re.sub(r"<[^>]+>", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        return text
+
+    @staticmethod
+    def _normalize_url(url: str, base: str) -> str:
+        """URL نسبی را به مطلق تبدیل می‌کند"""
+        if url.startswith("http"):
+            return url
+        try:
+            return urljoin(base, url)
+        except Exception:
+            return url
+
+    @staticmethod
+    def _parse_date(entry: feedparser.util.FeedParserDict) -> datetime:
+        """زمان انتشار را به datetime با timezone UTC تبدیل می‌کند"""
+        for attr in ("published_parsed", "updated_parsed", "created_parsed"):
+            t = getattr(entry, attr, None)
+            if t:
+                try:
+                    return datetime(*t[:6], tzinfo=timezone.utc)
+                except Exception:
+                    pass
+        return datetime.now(timezone.utc)
+
+    @staticmethod
+    def _extract_image(
+        entry: feedparser.util.FeedParserDict, raw_summary: str
+    ) -> Optional[str]:
+        """
+        تصویر خبر را از منابع مختلف استخراج می‌کند:
+        1. enclosures (پیوست RSS)
+        2. media:content
+        3. media:thumbnail
+        4. اولین <img> در متن خبر
+        """
+        # ۱) enclosure
+        for enc in getattr(entry, "enclosures", []):
+            mime = getattr(enc, "type", "") or ""
+            href = getattr(enc, "href", "") or getattr(enc, "url", "") or ""
+            if href and "image" in mime:
+                return href
+
+        # ۲) media:content
+        for mc in getattr(entry, "media_content", []):
+            url = mc.get("url", "")
+            medium = mc.get("medium", "")
+            if url and ("image" in medium or url.lower().endswith(
+                (".jpg", ".jpeg", ".png", ".webp")
+            )):
+                return url
+
+        # ۳) media:thumbnail
+        thumb = getattr(entry, "media_thumbnail", [])
+        if thumb and isinstance(thumb, list) and thumb[0].get("url"):
+            return thumb[0]["url"]
+
+        # ۴) اولین تصویر در HTML خبر
+        if raw_summary and "<img" in raw_summary:
+            try:
+                soup = BeautifulSoup(raw_summary, "html.parser")
+                img = soup.find("img")
+                if img and img.get("src"):
+                    src = img["src"]
+                    if src.startswith("http"):
+                        return src
+            except Exception:
+                pass
+
+        return None
 
 
-def collect_all_feeds() -> list[dict]:
+# ═══════════════════════════════════════════════════════════════
+# ۴) تابع اصلی جمع‌آوری موازی
+# ═══════════════════════════════════════════════════════════════
+def collect_all_feeds() -> list[RawNewsItem]:
     """
-    جمع‌آوری از همه فیدها + فیدهای پشتیبان
-    خروجی: لیست یکتا بر اساس لینک
+    همه فیدها را به صورت موازی دریافت می‌کند.
+    خروجی: لیست یکتا از RawNewsItem (بر اساس uid)
     """
-    all_items  = []
-    seen_links = set()
-    active_sources = 0
-    all_feeds  = FEEDS + BACKUP_FEEDS
+    fetcher = AdaptiveFetcher()
+    all_items: list[RawNewsItem] = []
+    seen_uids: set[str] = set()
 
-    for feed_config in all_feeds:
-        logger.info(f"[collect] شروع: {feed_config['name']} — {feed_config['url']}")
+    logger.info("🚀 شروع جمع‌آوری از %d فید با %d thread", len(FEEDS), COLLECTOR_MAX_WORKERS)
+    start_time = time.time()
 
-        content = _fetch_feed_content(feed_config)
-        if not content:
-            logger.warning(f"[{feed_config['name']}] ❌ دریافت نشد")
-            continue
+    with ThreadPoolExecutor(max_workers=COLLECTOR_MAX_WORKERS) as executor:
+        future_map = {
+            executor.submit(fetcher.fetch, feed): feed
+            for feed in sorted(FEEDS, key=lambda f: f.priority)
+        }
 
-        items = _parse_entries(content, feed_config)
-        if not items:
-            continue
+        for future in as_completed(future_map):
+            feed = future_map[future]
+            try:
+                items = future.result()
+                new_count = 0
+                for item in items:
+                    if item.uid not in seen_uids:
+                        seen_uids.add(item.uid)
+                        all_items.append(item)
+                        new_count += 1
+                logger.info("📡 [%s] %d خبر جدید اضافه شد", feed.name, new_count)
+            except Exception as exc:
+                logger.error("❌ خطا در پردازش فید [%s]: %s", feed.name, exc)
 
-        active_sources += 1
-        new_count = 0
-        for item in items:
-            link = item["link"]
-            if link not in seen_links:
-                seen_links.add(link)
-                all_items.append(item)
-                new_count += 1
-
-        logger.info(f"[{feed_config['name']}] ✅ {new_count} آیتم جدید")
-        time.sleep(random.uniform(0.5, 1.5))
-
+    elapsed = time.time() - start_time
     logger.info(
-        f"[collect] ═══ جمع‌بندی: "
-        f"{active_sources}/{len(all_feeds)} منبع فعال | "
-        f"{len(all_items)} آیتم یکتا ═══"
+        "✅ جمع‌آوری کامل: %d خبر یکتا از %d فید | ⏱ %.1f ثانیه",
+        len(all_items), len(FEEDS), elapsed,
     )
+
+    # مرتب‌سازی بر اساس تاریخ انتشار (جدیدترین اول)
+    all_items.sort(key=lambda x: x.published_dt, reverse=True)
     return all_items
