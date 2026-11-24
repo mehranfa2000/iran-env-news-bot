@@ -1,46 +1,58 @@
-name: 🤖 تحلیل ۲۴ ساعته هوش مصنوعی
+name: 📊 Daily AI Analysis
 
 on:
   schedule:
-    - cron: '0 6 * * *'   # هر روز ساعت ۹:۳۰ صبح (UTC 6 = تهران 9:30)
-  workflow_dispatch:        # اجرای دستی از داشبورد GitHub
-
-concurrency:
-  group: daily-analysis
-  cancel-in-progress: false
+    - cron: "0 21 * * *"   # ساعت ۲۱ UTC = ۱:۳۰ بامداد تهران
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  analyze:
+  daily:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
-      - name: ⬇️ دریافت کدها
+      - name: ⬇️ Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 🐍 نصب Python 3.12
+      - name: 🐍 Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-          cache: 'pip'
+          python-version: "3.12"
+          cache: pip
 
-      - name: 📦 نصب کتابخانه‌ها
-        run: pip install -r requirements.txt
+      - name: 📦 Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install \
+            feedparser==6.0.11 \
+            requests==2.32.3 \
+            beautifulsoup4==4.12.3 \
+            lxml==5.3.0 \
+            jdatetime==4.1.1 \
+            google-generativeai==0.8.3
 
-      - name: 🤖 تحلیل ۲۴ ساعته
+      - name: 📊 Generate daily analysis
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          PYTHONWARNINGS: ignore
         run: python daily_analysis.py
 
-      - name: 💾 ذخیره تحلیل
+      - name: 📤 Commit & Push
         run: |
-          git config --global user.name "Iran Env Bot"
-          git config --global user.email "bot@iran-env.ir"
-          git add data/daily_analysis.json
-          git diff --staged --quiet || git commit -m "🤖 تحلیل روزانه - $(date +'%Y-%m-%d %H:%M')"
-          git push
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          cp data/daily_analysis.json /tmp/daily_new.json 2>/dev/null || true
+          git fetch origin main
+          git reset --soft origin/main
+          cp /tmp/daily_new.json data/daily_analysis.json 2>/dev/null || true
+
+          git add data/daily_analysis.json || true
+          git diff --staged --quiet && echo "⏭ تغییری نبود" && exit 0
+          git commit -m "📊 auto: daily analysis $(date -u '+%Y-%m-%d')"
+          git push origin main
