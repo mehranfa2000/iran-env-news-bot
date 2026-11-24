@@ -1,9 +1,9 @@
 [
   {
-    "run_id": "567751c9",
-    "start_time": "2026-11-24T21:19:02.924042+00:00",
-    "end_time": "2026-11-24T21:28:31.131758+00:00",
-    "duration_seconds": 568.21,
+    "run_id": "7e5ed012",
+    "start_time": "2026-11-24T21:29:03.867341+00:00",
+    "end_time": "2026-11-24T21:38:46.664531+00:00",
+    "duration_seconds": 582.8,
     "total_collected": 312,
     "new_articles": 312,
     "filtered_articles": 200,
