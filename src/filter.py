@@ -1,491 +1,238 @@
+# src/filter.py
 """
-filter.py — v4.0
-فیلتر ۴ لایه با ۲۰۰+ کلمه‌کلیدی وزن‌دار + دسته‌بندی هوشمند
-لایه ۱: اعتبارسنجی فیلد
-لایه ۲: بلک‌لیست (غیر محیط‌زیستی)
-لایه ۳: امتیازدهی وزن‌دار با regex مرزی
-لایه ۴: دسته‌بندی + تشخیص بحران
+فیلتر ۴ لایه با ۲۰۰+ کلمه کلیدی وزن‌دار
+نسخه ۴.۰
 """
 
 from __future__ import annotations
+
 import logging
 import re
-from dataclasses import dataclass, field
 from typing import Optional
 
-from src.config import (
+from agent import NewsItem
+from config import (
     CATEGORIES,
     SCORE_THRESHOLD_DEDICATED,
     SCORE_THRESHOLD_GENERAL,
     CRITICAL_SCORE_THRESHOLD,
-    Category,
 )
-from src.collector import RawNewsItem
 
 logger = logging.getLogger("filter")
 
-# ═══════════════════════════════════════════════════════════════
-# ۱) ساختار خبر فیلترشده
-# ═══════════════════════════════════════════════════════════════
-@dataclass
-class FilteredNewsItem:
-    uid: str
-    title: str
-    summary: str
-    link: str
-    source: str
-    published_dt: object         # datetime UTC
-    image_url: Optional[str]
-    category: Category
-    score: int
-    critical: bool
-    matched_keywords: list[str]
-    feed_dedicated: bool
-    feed_priority: int
-    # پر می‌شود توسط analyzer:
-    ai_summary: Optional[str]      = None
-    ai_analysis: Optional[dict]    = None
+
+# ══════════════════════════════════════════════════════════════════
+# کلمات کلیدی وزن‌دار — ۲۰۰+
+# ══════════════════════════════════════════════════════════════════
+
+WEIGHTED_KEYWORDS: dict[str, int] = {
+    # ─── آلودگی هوا ───
+    "آلودگی هوا": 10, "آلودگی": 6, "شاخص کیفیت هوا": 10, "AQI": 8,
+    "ذرات معلق": 9, "PM2.5": 10, "PM10": 9, "دی‌اکسید گوگرد": 8,
+    "دی‌اکسید نیتروژن": 8, "اوزون": 7, "مونوکسید کربن": 8,
+    "هوای ناسالم": 9, "هوای آلوده": 9, "آلاینده": 7, "دود": 5,
+    "مه دود": 8, "گرد و غبار": 9, "ریزگرد": 10, "توفان گرد": 8,
+
+    # ─── آلودگی آب ───
+    "آلودگی آب": 10, "آلودگی دریا": 10, "آلودگی رودخانه": 9,
+    "فاضلاب": 7, "پساب": 7, "نشت نفت": 10, "لکه نفتی": 10,
+    "آلودگی نفتی": 10, "شوری آب": 7, "کیفیت آب": 8,
+
+    # ─── آلودگی خاک ───
+    "آلودگی خاک": 10, "فلزات سنگین": 9, "سرب": 7, "کادمیوم": 8,
+    "آرسنیک": 8, "جیوه": 8, "سموم کشاورزی": 8, "آفت‌کش": 7,
+    "پلاستیک": 6, "زباله": 5, "پسماند": 6, "دفن زباله": 7,
+    "مواد زاید": 6, "نخاله": 5,
+
+    # ─── حیات وحش ───
+    "یوزپلنگ": 10, "پلنگ": 9, "ببر": 10, "خرس": 8, "گرگ": 7,
+    "کرکس": 8, "عقاب": 7, "فلامینگو": 8, "پرنده": 5, "پرندگان": 5,
+    "حیات وحش": 10, "گونه در معرض خطر": 10, "انقراض": 10,
+    "تنوع زیستی": 10, "زیستگاه": 8, "شکار غیرمجاز": 10,
+    "قاچاق حیوانات": 10, "حیوانات وحشی": 8, "گونه‌های بومی": 8,
+    "اکوسیستم": 8, "زیست‌بوم": 8, "مناطق حفاظت‌شده": 9,
+    "پارک ملی": 8, "گاوخونی": 9, "ارس": 7, "البرز": 5,
+
+    # ─── آب و تالاب‌ها ───
+    "دریاچه ارومیه": 10, "خلیج فارس": 8, "دریای خزر": 9,
+    "دریای عمان": 8, "تالاب": 10, "هامون": 10, "پریشان": 9,
+    "انزلی": 8, "کارون": 8, "زاینده‌رود": 9, "هیرمند": 9,
+    "خشکسالی": 10, "بحران آب": 10, "کم‌آبی": 9, "تنش آبی": 10,
+    "سطح آب": 7, "ذخیره آب": 7, "آب زیرزمینی": 8,
+    "سفره آب": 8, "فرونشست": 10, "سیلاب": 9, "سیل": 8,
+    "روان‌آب": 6, "حوضه آبریز": 7, "رودخانه": 5,
+    "آبخیزداری": 8, "سد": 5, "مخزن سد": 7,
+
+    # ─── تغییر اقلیم ───
+    "تغییر اقلیم": 10, "گرمایش زمین": 10, "گازهای گلخانه‌ای": 10,
+    "دی‌اکسید کربن": 8, "CO2": 8, "متان": 7, "اثر گلخانه‌ای": 9,
+    "بحران اقلیمی": 10, "افزایش دما": 8, "ذوب یخچال": 9,
+    "خشکی": 7, "بیابان‌زایی": 9, "فرسایش خاک": 8,
+    "کربن": 6, "انتشار کربن": 8, "جذب کربن": 7,
+    "COP": 7, "پاریس": 5,
+
+    # ─── جنگل و مراتع ───
+    "جنگل": 7, "جنگل‌زدایی": 10, "قطع درخت": 9, "آتش‌سوزی جنگل": 10,
+    "حریق": 8, "مرتع": 7, "بیابان": 7, "درختکاری": 6,
+    "جنگل‌کاری": 7, "منابع طبیعی": 8, "فرسایش": 7,
+    "بوته‌کنی": 8, "زغال‌گیری": 8, "جنگل هیرکانی": 10,
+    "جنگل زاگرس": 10, "بلوط": 7, "ارغوان": 5,
+
+    # ─── سیاست و قانون ───
+    "سازمان محیط‌زیست": 10, "سازمان حفاظت": 10, "وزیر محیط‌زیست": 10,
+    "معاون محیط‌زیست": 9, "محیط‌زیست": 8, "قانون محیط‌زیست": 9,
+    "مقررات زیست‌محیطی": 9, "جریمه زیست‌محیطی": 9,
+    "پروانه زیست‌محیطی": 8, "ارزیابی زیست‌محیطی": 9,
+    "برنامه محیط‌زیست": 7, "UNEP": 8, "IUCN": 8,
+
+    # ─── توسعه پایدار ───
+    "انرژی تجدیدپذیر": 10, "انرژی خورشیدی": 9, "انرژی بادی": 9,
+    "پنل خورشیدی": 8, "توربین بادی": 8, "بیوگاز": 8,
+    "بیوانرژی": 7, "توسعه پایدار": 10, "اقتصاد سبز": 9,
+    "بازیافت": 7, "اقتصاد چرخشی": 8, "کربن صفر": 9,
+    "خودروی برقی": 7, "حمل‌ونقل سبز": 7,
+
+    # ─── کلمات بحرانی ───
+    "بحران": 8, "فاجعه": 10, "فوری": 7, "اضطرار": 9,
+    "هشدار": 7, "خطر": 6, "تهدید": 7, "مرگ": 7,
+    "تلفات": 8, "مسموم": 8, "آلوده‌ساز": 8,
+}
+
+# ─── لیست سیاه (کلمات نامربوط) ───
+BLACKLIST_KEYWORDS: set[str] = {
+    "فوتبال", "بسکتبال", "والیبال", "کشتی", "ورزش", "ورزشی",
+    "بازی", "مسابقه", "لیگ", "جام", "گل", "پیروزی", "شکست",
+    "فیلم", "سریال", "موسیقی", "کنسرت", "هنر", "سینما",
+    "بازیگر", "خواننده", "مد", "فشن",
+    "انتخابات", "نتیجه انتخابات", "رای", "کاندیدا",
+    "بورس", "سهام", "ارز", "دلار", "طلا", "سکه", "بیت‌کوین",
+    "خودرو", "ماشین", "خرید", "فروش", "قیمت",
+    "آشپزی", "دستور پخت", "غذا",
+}
+
+# ─── کلمات کوتاه (نیاز به مرز کلمه) ───
+SHORT_KEYWORDS: set[str] = {k for k in WEIGHTED_KEYWORDS if len(k) <= 4}
+
+# ─── نگاشت کلیدواژه به دسته ───
+CATEGORY_KEYWORDS: dict[str, list[str]] = {
+    "air_water_soil": [
+        "آلودگی هوا", "ریزگرد", "گرد و غبار", "PM2.5", "PM10", "AQI",
+        "آلودگی آب", "آلودگی دریا", "فاضلاب", "پساب", "نشت نفت",
+        "آلودگی خاک", "فلزات سنگین", "پسماند",
+    ],
+    "wildlife": [
+        "یوزپلنگ", "پلنگ", "ببر", "خرس", "گرگ", "کرکس", "فلامینگو",
+        "حیات وحش", "انقراض", "تنوع زیستی", "شکار غیرمجاز", "قاچاق حیوانات",
+        "گونه در معرض خطر", "پارک ملی", "زیستگاه", "اکوسیستم",
+    ],
+    "water_wetlands": [
+        "دریاچه ارومیه", "خلیج فارس", "دریای خزر", "تالاب", "هامون",
+        "خشکسالی", "بحران آب", "فرونشست", "سیلاب", "زاینده‌رود",
+        "هیرمند", "آب زیرزمینی",
+    ],
+    "climate": [
+        "تغییر اقلیم", "گرمایش زمین", "گازهای گلخانه‌ای", "بحران اقلیمی",
+        "بیابان‌زایی", "خشکی", "ذوب یخچال", "CO2", "COP",
+    ],
+    "forests": [
+        "جنگل", "جنگل‌زدایی", "آتش‌سوزی جنگل", "مرتع", "بیابان",
+        "جنگل هیرکانی", "جنگل زاگرس", "بلوط", "منابع طبیعی",
+    ],
+    "policy": [
+        "سازمان محیط‌زیست", "وزیر محیط‌زیست", "قانون محیط‌زیست",
+        "ارزیابی زیست‌محیطی", "UNEP", "IUCN",
+    ],
+    "sustainable": [
+        "انرژی تجدیدپذیر", "انرژی خورشیدی", "انرژی بادی", "توسعه پایدار",
+        "بازیافت", "اقتصاد سبز", "کربن صفر",
+    ],
+}
 
 
-# ═══════════════════════════════════════════════════════════════
-# ۲) کلمات کلیدی وزن‌دار (۲۰۰+)
-#    فرمت: ("کلمه", وزن, [دسته‌های مرتبط])
-# ═══════════════════════════════════════════════════════════════
-WEIGHTED_KEYWORDS: list[tuple[str, int, list[str]]] = [
+# ══════════════════════════════════════════════════════════════════
+# توابع کمکی
+# ══════════════════════════════════════════════════════════════════
 
-    # ── آلودگی هوا/آب/خاک — وزن بالا ────────────────────────
-    ("آلودگی هوا",          10, ["air_water_soil"]),
-    ("آلودگی آب",           10, ["air_water_soil", "water_wetlands"]),
-    ("آلودگی خاک",          10, ["air_water_soil"]),
-    ("آلودگی صوتی",          6, ["air_water_soil"]),
-    ("آلودگی نوری",          5, ["air_water_soil"]),
-    ("شاخص کیفیت هوا",      10, ["air_water_soil"]),
-    ("AQI",                  8, ["air_water_soil"]),
-    ("ذرات معلق",            9, ["air_water_soil"]),
-    ("PM2.5",               10, ["air_water_soil"]),
-    ("PM10",                 8, ["air_water_soil"]),
-    ("کربن‌مونوکسید",        8, ["air_water_soil"]),
-    ("دی‌اکسید گوگرد",       7, ["air_water_soil"]),
-    ("اکسید نیتروژن",        7, ["air_water_soil"]),
-    ("ازن",                  6, ["air_water_soil"]),
-    ("هوای ناسالم",          9, ["air_water_soil"]),
-    ("هوای آلوده",           9, ["air_water_soil"]),
-    ("وارونگی دما",          8, ["air_water_soil"]),
-    ("وارونگی هوا",          8, ["air_water_soil"]),
-    ("کارخانه آلاینده",      8, ["air_water_soil"]),
-    ("صنعت آلاینده",         7, ["air_water_soil"]),
-    ("فاضلاب",               7, ["air_water_soil", "water_wetlands"]),
-    ("پساب",                 7, ["air_water_soil", "water_wetlands"]),
-    ("پسماند",               7, ["air_water_soil"]),
-    ("زباله",                5, ["air_water_soil"]),
-    ("مواد زائد",            6, ["air_water_soil"]),
-    ("سرب",                  7, ["air_water_soil"]),
-    ("جیوه",                 8, ["air_water_soil"]),
-    ("کادمیوم",              7, ["air_water_soil"]),
-    ("آرسنیک",               7, ["air_water_soil"]),
-    ("نیترات",               6, ["air_water_soil", "water_wetlands"]),
-    ("فسفر",                 5, ["air_water_soil", "water_wetlands"]),
-    ("هیدروکربن",            7, ["air_water_soil"]),
-    ("آلاینده",              8, ["air_water_soil"]),
-    ("سم",                   6, ["air_water_soil", "wildlife"]),
-    ("سموم",                 7, ["air_water_soil", "wildlife"]),
-    ("کود شیمیایی",          6, ["air_water_soil"]),
-    ("آفت‌کش",               7, ["air_water_soil", "wildlife"]),
-    ("سطح سرب خون",          8, ["air_water_soil"]),
-    ("آلودگی صنعتی",         9, ["air_water_soil"]),
-    ("پالایشگاه",            6, ["air_water_soil"]),
-    ("نیروگاه حرارتی",       6, ["air_water_soil"]),
-    ("آلودگی نفتی",          9, ["air_water_soil", "water_wetlands"]),
-    ("نشت نفت",              9, ["air_water_soil", "water_wetlands"]),
-    ("ریزگرد",               9, ["air_water_soil"]),
-    ("گرد و غبار",           8, ["air_water_soil"]),
-    ("طوفان گرد",            7, ["air_water_soil", "climate"]),
-
-    # ── حیات وحش ─────────────────────────────────────────────
-    ("حیات وحش",             10, ["wildlife"]),
-    ("یوزپلنگ",              10, ["wildlife"]),
-    ("ببر",                   9, ["wildlife"]),
-    ("پلنگ",                  9, ["wildlife"]),
-    ("خرس",                   8, ["wildlife"]),
-    ("گرگ",                   7, ["wildlife"]),
-    ("گوزن",                  8, ["wildlife"]),
-    ("کرکس",                  8, ["wildlife"]),
-    ("عقاب",                  8, ["wildlife"]),
-    ("لاک‌پشت دریایی",        9, ["wildlife", "water_wetlands"]),
-    ("فلامینگو",              8, ["wildlife", "water_wetlands"]),
-    ("پرنده مهاجر",           8, ["wildlife"]),
-    ("پرندگان مهاجر",         8, ["wildlife"]),
-    ("تنوع زیستی",           10, ["wildlife"]),
-    ("تنوع گونه‌ای",          9, ["wildlife"]),
-    ("گونه در خطر",          10, ["wildlife"]),
-    ("گونه منقرض",           10, ["wildlife"]),
-    ("انقراض",               10, ["wildlife"]),
-    ("قاچاق حیوانات",        10, ["wildlife"]),
-    ("شکار غیرمجاز",         10, ["wildlife"]),
-    ("صید غیرمجاز",          10, ["wildlife"]),
-    ("ممنوعیت شکار",          7, ["wildlife"]),
-    ("مناطق شکار ممنوع",      7, ["wildlife"]),
-    ("کریدور زیستی",          8, ["wildlife"]),
-    ("زیستگاه",               8, ["wildlife"]),
-    ("اکوسیستم",              8, ["wildlife"]),
-    ("گونه بومی",             7, ["wildlife"]),
-    ("گونه غیربومی",          7, ["wildlife"]),
-    ("گونه مهاجم",            7, ["wildlife"]),
-    ("ماهی",                  5, ["wildlife", "water_wetlands"]),
-    ("آبزیان",                7, ["wildlife", "water_wetlands"]),
-    ("مرجان",                 8, ["wildlife", "water_wetlands"]),
-    ("دلفین",                 8, ["wildlife", "water_wetlands"]),
-    ("نهنگ",                  8, ["wildlife", "water_wetlands"]),
-    ("پارک ملی",              7, ["wildlife"]),
-    ("منطقه حفاظت‌شده",       8, ["wildlife"]),
-    ("ذخیره‌گاه زیست‌کره",    9, ["wildlife"]),
-    ("بیوسفر",                8, ["wildlife"]),
-    ("کانون آب و خاک",        6, ["wildlife", "forests"]),
-
-    # ── آب/تالاب/دریا ─────────────────────────────────────────
-    ("تالاب",                10, ["water_wetlands"]),
-    ("دریاچه",                8, ["water_wetlands"]),
-    ("رودخانه",               7, ["water_wetlands"]),
-    ("خلیج فارس",             8, ["water_wetlands"]),
-    ("دریای خزر",             9, ["water_wetlands"]),
-    ("دریای عمان",            7, ["water_wetlands"]),
-    ("آب‌های زیرزمینی",       8, ["water_wetlands"]),
-    ("سفره آب زیرزمینی",      8, ["water_wetlands"]),
-    ("بحران آب",              10, ["water_wetlands", "climate"]),
-    ("کم‌آبی",               9, ["water_wetlands", "climate"]),
-    ("خشکسالی",               9, ["water_wetlands", "climate"]),
-    ("کاهش سطح آب",           8, ["water_wetlands"]),
-    ("خشک شدن",               8, ["water_wetlands", "climate"]),
-    ("برداشت آب",             7, ["water_wetlands"]),
-    ("مصرف آب",               6, ["water_wetlands"]),
-    ("تنش آبی",               9, ["water_wetlands", "climate"]),
-    ("سد",                    6, ["water_wetlands"]),
-    ("احداث سد",              7, ["water_wetlands"]),
-    ("انتقال آب",             7, ["water_wetlands"]),
-    ("آبیاری قطره‌ای",        6, ["water_wetlands", "sustainable"]),
-    ("کانون‌های بحران آب",    9, ["water_wetlands", "climate"]),
-    ("تالاب انزلی",           9, ["water_wetlands"]),
-    ("هورالعظیم",             9, ["water_wetlands"]),
-    ("هامون",                 9, ["water_wetlands"]),
-    ("ارومیه",                9, ["water_wetlands"]),
-    ("دریاچه ارومیه",        10, ["water_wetlands", "climate"]),
-    ("بازیابی تالاب",         9, ["water_wetlands"]),
-    ("احیای تالاب",           9, ["water_wetlands"]),
-    ("رامسر",                 7, ["water_wetlands"]),
-    ("کنوانسیون رامسر",       7, ["water_wetlands"]),
-    ("پیامد سیل",             8, ["water_wetlands", "climate"]),
-    ("مدیریت سیلاب",          7, ["water_wetlands", "climate"]),
-    ("آبخیزداری",             7, ["water_wetlands", "forests"]),
-
-    # ── تغییر اقلیم/بحران ────────────────────────────────────
-    ("تغییر اقلیم",          10, ["climate"]),
-    ("تغییر آب‌وهوا",        10, ["climate"]),
-    ("گرمایش جهانی",         10, ["climate"]),
-    ("گازهای گلخانه‌ای",     10, ["climate"]),
-    ("دی‌اکسید کربن",         8, ["climate"]),
-    ("CO2",                   8, ["climate"]),
-    ("متان",                  8, ["climate"]),
-    ("ردپای کربن",            8, ["climate"]),
-    ("اثر گلخانه‌ای",         8, ["climate"]),
-    ("بحران اقلیمی",         10, ["climate"]),
-    ("اضطرار اقلیمی",        10, ["climate"]),
-    ("سیل",                   8, ["climate", "water_wetlands"]),
-    ("زلزله",                 6, ["climate"]),
-    ("آتش‌سوزی جنگل",        10, ["climate", "forests"]),
-    ("آتش‌سوزی",              7, ["climate", "forests"]),
-    ("حریق",                  6, ["climate", "forests"]),
-    ("موج گرما",              9, ["climate"]),
-    ("گرمای بی‌سابقه",        9, ["climate"]),
-    ("ریزش کوه",              6, ["climate"]),
-    ("رانش زمین",             7, ["climate"]),
-    ("طوفان",                 7, ["climate"]),
-    ("توفان",                 6, ["climate"]),
-    ("بارندگی شدید",          7, ["climate"]),
-    ("ذوب یخچال",             9, ["climate"]),
-    ("یخچال طبیعی",           8, ["climate"]),
-    ("بیابان‌زایی",            9, ["climate", "forests"]),
-    ("تخریب اراضی",           8, ["climate", "forests"]),
-    ("اقلیم",                 6, ["climate"]),
-    ("سازگاری با اقلیم",      8, ["climate"]),
-    ("تاب‌آوری اقلیمی",       8, ["climate"]),
-    ("COP",                   8, ["climate", "policy"]),
-    ("پیمان پاریس",           8, ["climate", "policy"]),
-    ("کربن‌خنثی",             8, ["climate", "sustainable"]),
-    ("خنثی‌سازی کربن",        8, ["climate", "sustainable"]),
-    ("تعهدات اقلیمی",         7, ["climate", "policy"]),
-
-    # ── جنگل/مرتع/منابع طبیعی ────────────────────────────────
-    ("جنگل",                  9, ["forests"]),
-    ("جنگل‌زدایی",           10, ["forests"]),
-    ("قطع درخت",             10, ["forests"]),
-    ("بیشه",                  7, ["forests"]),
-    ("مرتع",                  8, ["forests"]),
-    ("تخریب مرتع",            9, ["forests"]),
-    ("منابع طبیعی",           8, ["forests"]),
-    ("جنگل‌های هیرکانی",      9, ["forests"]),
-    ("جنگل ابری",             8, ["forests"]),
-    ("جنگل‌کاری",             8, ["forests"]),
-    ("درخت‌کاری",             7, ["forests"]),
-    ("کاشت درخت",             6, ["forests"]),
-    ("فرسایش خاک",            9, ["forests", "air_water_soil"]),
-    ("حریم جنگل",             7, ["forests"]),
-    ("تجاوز به جنگل",         8, ["forests"]),
-    ("تخریب جنگل",            9, ["forests"]),
-    ("ذغال‌گیری",             7, ["forests"]),
-    ("مخروبه",                5, ["forests"]),
-    ("کانون بحران خاک",       8, ["forests", "air_water_soil"]),
-
-    # ── سیاست‌ها/قوانین/سازمان ───────────────────────────────
-    ("سازمان محیط‌زیست",     10, ["policy"]),
-    ("سازمان حفاظت محیط‌زیست",10,["policy"]),
-    ("وزارت محیط‌زیست",       9, ["policy"]),
-    ("قانون محیط‌زیست",        9, ["policy"]),
-    ("قوانین زیست‌محیطی",     8, ["policy"]),
-    ("ارزیابی زیست‌محیطی",    8, ["policy"]),
-    ("ارزیابی اثرات محیطی",   8, ["policy"]),
-    ("مجوز زیست‌محیطی",       7, ["policy"]),
-    ("استانداردهای زیست‌محیطی",7,["policy"]),
-    ("حقوق محیط‌زیست",        7, ["policy"]),
-    ("جرایم زیست‌محیطی",      8, ["policy"]),
-    ("جریمه زیست‌محیطی",      7, ["policy"]),
-    ("پلیس محیط‌زیست",        8, ["policy"]),
-    ("سازمان محیط زیست ملل",  8, ["policy"]),
-    ("UNEP",                  7, ["policy"]),
-    ("برنامه محیط‌زیست ملل",  7, ["policy"]),
-    ("رئیس سازمان محیط‌زیست", 9, ["policy"]),
-    ("بودجه محیط‌زیست",       7, ["policy"]),
-    ("طرح محیط‌زیست",         7, ["policy"]),
-    ("برنامه صیانت",          7, ["policy"]),
-    ("شورای عالی محیط‌زیست",  8, ["policy"]),
-
-    # ── توسعه پایدار/انرژی پاک ───────────────────────────────
-    ("توسعه پایدار",          9, ["sustainable"]),
-    ("انرژی تجدیدپذیر",      10, ["sustainable"]),
-    ("انرژی خورشیدی",         9, ["sustainable"]),
-    ("پنل خورشیدی",           8, ["sustainable"]),
-    ("انرژی بادی",            9, ["sustainable"]),
-    ("توربین بادی",            7, ["sustainable"]),
-    ("انرژی پاک",             9, ["sustainable"]),
-    ("انرژی سبز",             8, ["sustainable"]),
-    ("اقتصاد سبز",            8, ["sustainable"]),
-    ("اقتصاد چرخشی",         8, ["sustainable"]),
-    ("بازیافت",               8, ["sustainable"]),
-    ("بازیافت زباله",          8, ["sustainable"]),
-    ("کاهش مصرف",             6, ["sustainable"]),
-    ("ساختمان سبز",           7, ["sustainable"]),
-    ("حمل‌ونقل پاک",          7, ["sustainable"]),
-    ("خودرو برقی",            7, ["sustainable"]),
-    ("هیدروژن سبز",           8, ["sustainable"]),
-    ("اهداف توسعه پایدار",    7, ["sustainable", "policy"]),
-    ("SDG",                   6, ["sustainable", "policy"]),
-    ("مصرف انرژی",            5, ["sustainable"]),
-    ("کارایی انرژی",          6, ["sustainable"]),
-    ("گواهینامه سبز",         6, ["sustainable"]),
-    ("استانداردهای سبز",      6, ["sustainable"]),
-    ("محیط‌زیست",             6, ["policy"]),    # کلی
-    ("اکولوژی",               6, ["wildlife"]),
-    ("زیست‌بوم",              6, ["wildlife"]),
-    ("طبیعت",                 4, ["wildlife"]),
-    ("طبیعت‌گردی",            4, ["sustainable"]),
-    ("اکوتوریسم",             6, ["sustainable"]),
-    ("گردشگری پایدار",        5, ["sustainable"]),
-]
-
-# ═══════════════════════════════════════════════════════════════
-# ۳) بلک‌لیست (کلماتی که خبر را رد می‌کنند)
-# ═══════════════════════════════════════════════════════════════
-BLACKLIST: list[str] = [
-    # سیاسی
-    "انتخابات", "مجلس", "دولت", "وزیر", "رئیس‌جمهور", "حزب",
-    "نماینده مجلس", "اصلاح‌طلب", "اصولگرا", "رأی",
-    # اقتصادی غیر مرتبط
-    "بورس", "سهام", "بانک", "ارز", "دلار", "تورم", "مسکن",
-    "خودرو سازی", "واردات", "صادرات", "تعرفه گمرکی",
-    # ورزشی
-    "فوتبال", "کشتی", "والیبال", "المپیک", "ورزشکار", "مسابقه",
-    "لیگ برتر", "باشگاه ورزشی", "فدراسیون ورزش",
-    # اجتماعی غیر مرتبط
-    "ازدواج", "طلاق", "بازنشستگی", "آموزش‌وپرورش",
-    "دانشگاه", "کنکور", "دانشجو", "مدرسه",
-    # امنیتی/نظامی
-    "سپاه", "ارتش", "نیروی دریایی", "موشک", "جنگ", "حمله نظامی",
-    "تروریست", "تحریم", "برجام",
-    # بهداشت غیر مرتبط
-    "جراحی", "بیمارستان", "دارو", "واکسن",
-]
-
-# ═══════════════════════════════════════════════════════════════
-# ۴) regex از پیش کامپایل‌شده برای سرعت
-# ═══════════════════════════════════════════════════════════════
-def _build_patterns(
-    keywords: list[tuple[str, int, list[str]]]
-) -> list[tuple[re.Pattern, int, list[str]]]:
-    patterns = []
-    for kw, weight, cats in keywords:
-        if len(kw) <= 4:
-            # مرز کلمه برای کلمات کوتاه (جلوگیری از false positive)
-            pat = re.compile(r"(?<!\w)" + re.escape(kw) + r"(?!\w)")
-        else:
-            pat = re.compile(re.escape(kw))
-        patterns.append((pat, weight, cats))
-    return patterns
-
-KEYWORD_PATTERNS = _build_patterns(WEIGHTED_KEYWORDS)
-
-BLACKLIST_PATTERNS: list[re.Pattern] = [
-    re.compile(re.escape(bl)) for bl in BLACKLIST
-]
+def _normalize(text: str) -> str:
+    """نرمال‌سازی متن فارسی"""
+    text = text.replace("ي", "ی").replace("ك", "ک")
+    text = text.replace("\u200c", " ")  # نیم‌فاصله
+    return text.lower()
 
 
-# ═══════════════════════════════════════════════════════════════
-# ۵) تابع اصلی فیلتر
-# ═══════════════════════════════════════════════════════════════
+def _has_keyword(text: str, keyword: str) -> bool:
+    """بررسی وجود کلمه کلیدی با مرز کلمه برای کلمات کوتاه"""
+    if keyword in SHORT_KEYWORDS:
+        pattern = r"(?<!\w)" + re.escape(keyword) + r"(?!\w)"
+    else:
+        pattern = re.escape(keyword)
+    return bool(re.search(pattern, text, re.IGNORECASE))
+
+
+def _calc_score(text: str) -> int:
+    score = 0
+    for kw, weight in WEIGHTED_KEYWORDS.items():
+        if _has_keyword(text, kw):
+            score += weight
+    return score
+
+
+def _detect_category(text: str) -> str:
+    best_cat = "policy"
+    best_count = 0
+    for cat, keywords in CATEGORY_KEYWORDS.items():
+        count = sum(1 for kw in keywords if _has_keyword(text, kw))
+        if count > best_count:
+            best_count = count
+            best_cat = cat
+    return best_cat
+
+
+# ══════════════════════════════════════════════════════════════════
+# فیلتر اصلی
+# ══════════════════════════════════════════════════════════════════
+
 class NewsFilter:
-    """فیلتر ۴ لایه برای اخبار محیط‌زیستی"""
+    """فیلتر ۴ لایه‌ای اخبار محیط‌زیستی"""
 
-    def filter_batch(
-        self, items: list[RawNewsItem], known_uids: set[str]
-    ) -> list[FilteredNewsItem]:
-        """
-        یک دسته خبر را فیلتر می‌کند.
-        known_uids: مجموعه uid های قبلاً ذخیره‌شده (تکراری نباشند)
-        """
-        filtered: list[FilteredNewsItem] = []
+    def filter(self, items: list[NewsItem]) -> list[NewsItem]:
+        passed: list[NewsItem] = []
+        stats = {"total": len(items), "blacklisted": 0, "low_score": 0, "passed": 0}
 
         for item in items:
-            result = self._process_item(item, known_uids)
-            if result:
-                filtered.append(result)
+            full_text = _normalize(f"{item.title} {item.summary}")
+
+            # لایه ۱: اعتبارسنجی فیلد
+            if not item.title or not item.link or len(item.title) < 5:
+                continue
+
+            # لایه ۲: لیست سیاه
+            if any(bk in full_text for bk in BLACKLIST_KEYWORDS):
+                stats["blacklisted"] += 1
+                continue
+
+            # لایه ۳: امتیازدهی
+            score = _calc_score(full_text)
+            threshold = (
+                SCORE_THRESHOLD_DEDICATED
+                if getattr(item, "_dedicated", False)
+                else SCORE_THRESHOLD_GENERAL
+            )
+            if score < threshold:
+                stats["low_score"] += 1
+                continue
+
+            # لایه ۴: دسته‌بندی و پرچم بحرانی
+            item.score = score
+            item.category = _detect_category(full_text)
+            item.is_critical = score >= CRITICAL_SCORE_THRESHOLD
+            stats["passed"] += 1
+            passed.append(item)
 
         logger.info(
-            "🔍 فیلتر: %d ورودی → %d خبر محیط‌زیستی",
-            len(items), len(filtered)
+            "🔍 فیلتر: %d کل | %d لیست‌سیاه | %d امتیاز کم | %d تأیید",
+            stats["total"], stats["blacklisted"], stats["low_score"], stats["passed"],
         )
-        return filtered
-
-    def _process_item(
-        self, item: RawNewsItem, known_uids: set[str]
-    ) -> Optional[FilteredNewsItem]:
-        """یک خبر را از ۴ لایه رد می‌کند."""
-
-        # لایه ۰: تکرار (قبل از هر چیز)
-        if item.uid in known_uids:
-            return None
-
-        # لایه ۱: اعتبارسنجی فیلد
-        if not self._validate_fields(item):
-            return None
-
-        # متن برای بررسی
-        full_text = f"{item.title} {item.summary}"
-
-        # لایه ۲: بلک‌لیست
-        if self._is_blacklisted(full_text):
-            return None
-
-        # لایه ۳: امتیازدهی وزن‌دار
-        score, matched_kws, category_scores = self._score(full_text)
-
-        # آستانه بر اساس نوع فید
-        threshold = (
-            SCORE_THRESHOLD_DEDICATED
-            if item.feed_dedicated
-            else SCORE_THRESHOLD_GENERAL
-        )
-        if score < threshold:
-            return None
-
-        # لایه ۴: دسته‌بندی
-        category = self._categorize(category_scores)
-
-        # تشخیص بحران
-        critical = score >= CRITICAL_SCORE_THRESHOLD or self._has_critical_phrase(
-            full_text
-        )
-
-        return FilteredNewsItem(
-            uid=item.uid,
-            title=item.title,
-            summary=item.summary,
-            link=item.link,
-            source=item.source,
-            published_dt=item.published_dt,
-            image_url=item.image_url,
-            category=category,
-            score=score,
-            critical=critical,
-            matched_keywords=matched_kws[:10],  # حداکثر ۱۰ کلمه کلیدی
-            feed_dedicated=item.feed_dedicated,
-            feed_priority=item.feed_priority,
-        )
-
-    @staticmethod
-    def _validate_fields(item: RawNewsItem) -> bool:
-        """لایه ۱: بررسی وجود فیلدهای ضروری"""
-        if not item.title or len(item.title.strip()) < 5:
-            return False
-        if not item.link or not item.link.startswith("http"):
-            return False
-        # جلوگیری از خبرهای خیلی کوتاه
-        if len(item.title) + len(item.summary) < 20:
-            return False
-        return True
-
-    @staticmethod
-    def _is_blacklisted(text: str) -> bool:
-        """لایه ۲: بررسی بلک‌لیست"""
-        for pat in BLACKLIST_PATTERNS:
-            if pat.search(text):
-                return True
-        return False
-
-    @staticmethod
-    def _score(text: str) -> tuple[int, list[str], dict[str, int]]:
-        """
-        لایه ۳: امتیازدهی وزن‌دار
-        خروجی: (امتیاز کل, کلمات مطابق, امتیاز هر دسته)
-        """
-        total_score = 0
-        matched: list[str] = []
-        category_scores: dict[str, int] = {c.id: 0 for c in CATEGORIES}
-
-        for pat, weight, cats in KEYWORD_PATTERNS:
-            if pat.search(text):
-                total_score += weight
-                matched.append(pat.pattern.replace("\\", ""))
-                for cat in cats:
-                    if cat in category_scores:
-                        category_scores[cat] += weight
-
-        return total_score, matched, category_scores
-
-    @staticmethod
-    def _categorize(category_scores: dict[str, int]) -> Category:
-        """لایه ۴: انتخاب دسته با بالاترین امتیاز"""
-        from src.config import CATEGORY_MAP, CATEGORIES
-        if not any(category_scores.values()):
-            return CATEGORIES[-1]  # سیاست‌ها به عنوان پیش‌فرض
-        best_cat_id = max(category_scores, key=lambda k: category_scores[k])
-        return CATEGORY_MAP.get(best_cat_id, CATEGORIES[-1])
-
-    @staticmethod
-    def _has_critical_phrase(text: str) -> bool:
-        """تشخیص عبارات بحرانی صریح"""
-        critical_phrases = [
-            "بحران", "فاجعه", "فوری", "اضطرار", "هشدار قرمز",
-            "خطر جدی", "وضعیت بحرانی", "آلوده‌ترین",
-            "انقراض قطعی", "آتش‌سوزی گسترده", "نشت گاز",
-            "آلودگی شدید", "مرگ ماهیان", "تلفات حیات وحش",
-            "بدترین", "بی‌سابقه", "فوریت",
-        ]
-        for phrase in critical_phrases:
-            if phrase in text:
-                return True
-        return False
-
-
-# تابع سطح بالا برای استفاده در main.py
-def filter_news(
-    items: list[RawNewsItem], known_uids: set[str]
-) -> list[FilteredNewsItem]:
-    return NewsFilter().filter_batch(items, known_uids)
+        # مرتب‌سازی بر اساس امتیاز (بالاترین اول)
+        passed.sort(key=lambda x: x.score, reverse=True)
+        return passed
