@@ -1,5 +1,20 @@
 [
   {
+    "run_id": "d12e483f",
+    "start_time": "2026-11-25T05:00:20.183189+00:00",
+    "end_time": "2026-11-25T05:09:27.644827+00:00",
+    "duration_seconds": 547.46,
+    "total_collected": 312,
+    "new_articles": 312,
+    "filtered_articles": 200,
+    "ai_analyzed": 5,
+    "ai_summarized": 0,
+    "sent_count": 30,
+    "failed_count": 0,
+    "success": true,
+    "error_message": ""
+  },
+  {
     "run_id": "dbc2d5cc",
     "start_time": "2026-11-25T03:18:17.070156+00:00",
     "end_time": "2026-11-25T03:25:56.311718+00:00",
