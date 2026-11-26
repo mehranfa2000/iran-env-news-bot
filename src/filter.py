@@ -1,393 +1,310 @@
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  src/filter.py  ·  v4.1  ·  فیلتر ۴ لایه محیط‌زیستی                       ║
-# ║  اعتبارسنجی → لیست‌سیاه → امتیاز کلیدواژه → دسته‌بندی + بحرانی            ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+"""
+filter.py — فیلتر ۴ لایه‌ای اخبار محیط‌زیست
+نسخه: 4.2.0
+
+تغییرات v4.2:
+- word boundary فارسی برای کلمات ≤ ۴ کاراکتر
+  (جلوگیری از «دام» در «اقدامات»)
+- Regex pattern cache برای کارایی
+- Blacklist با word boundary (نه substring ساده)
+- دسته‌بندی بر اساس وزن کلمات کلیدی دسته
+- آمار کامل فیلتر در هر ران
+- API منسجم: filter_articles() → list[(article, FilterResult)]
+"""
 from __future__ import annotations
 
 import logging
 import re
+from dataclasses import dataclass, field
 from typing import Optional
 
-from src.collector import RawArticle
-from src.config    import (
+from src.config import (
+    KEYWORDS, BLACKLIST, CATEGORIES, CATEGORY_MAP,
+    SCORE_THRESHOLD_DEDICATED, SCORE_THRESHOLD_GENERAL,
     CRITICAL_SCORE_THRESHOLD,
-    DEFAULT_CATEGORY,
-    SCORE_THRESHOLD_DEDICATED,
-    SCORE_THRESHOLD_GENERAL,
 )
 
-logger = logging.getLogger(__name__)
+log = logging.getLogger(__name__)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ۱. لیست سیاه — کلیدواژه‌های غیرمحیط‌زیستی
+# مدل نتیجه فیلتر
 # ══════════════════════════════════════════════════════════════════════════════
+@dataclass
+class FilterResult:
+    """نتیجه فیلتر یک خبر."""
+    passed:           bool
+    score:            int
+    category:         str
+    critical:         bool
+    reject_reason:    Optional[str]    = None
+    matched_keywords: list[str]        = field(default_factory=list)
 
-_BLACKLIST: list[str] = [
-    # سیاسی و نظامی
-    "انتخابات", "نامزد", "رأی", "مجلس", "دولت", "وزیر", "رئیس‌جمهور",
-    "نظامی", "سپاه", "ارتش", "موشک", "تسلیحات", "جنگ", "حمله",
-    "تحریم", "دیپلماسی", "سفارت", "وزارت خارجه",
-    # اقتصادی غیرمرتبط
-    "بورس", "سهام", "ارز", "دلار", "طلا", "بانک", "وام", "بیمه",
-    "بازار", "تورم", "نرخ سود", "سرمایه‌گذاری خارجی",
-    # ورزشی
-    "فوتبال", "والیبال", "بسکتبال", "ورزشکار", "مسابقه", "لیگ",
-    "جام", "تیم ملی", "گل", "باخت", "برد",
-    # سرگرمی
-    "فیلم", "سریال", "بازیگر", "کنسرت", "موسیقی", "جشنواره فیلم",
-    "هنرمند", "خواننده",
-    # حوادث غیرمحیط‌زیستی
-    "تصادف", "سرقت", "قتل", "جرم", "دستگیری", "زندان", "دادگاه",
-    # فناوری غیرمرتبط
-    "گوشی", "لپ‌تاپ", "بازی کامپیوتری", "شبکه اجتماعی",
-]
 
-_BLACKLIST_PATTERN = re.compile(
-    "|".join(re.escape(w) for w in _BLACKLIST)
+# ══════════════════════════════════════════════════════════════════════════════
+# Word Boundary فارسی
+# ══════════════════════════════════════════════════════════════════════════════
+"""
+چالش: زبان فارسی کاراکتر جداکننده کلمه (word boundary) ندارد.
+\b در Python regex برای یونیکد کار نمی‌کند.
+
+راه‌حل:
+- کلمات ≤ ۴ کاراکتر: بررسی مرز با lookaround
+  مرزها: فاصله، نیم‌فاصله (U+200C)، علائم نگارشی فارسی/لاتین، ابتدا/انتهای رشته
+- کلمات > ۴ کاراکتر: substring ساده (کافی است)
+  مثال: «محیط‌زیست» در متن هر کجا باشد مرتبط است
+
+مثال‌های مهم:
+  «آب» (۲ کاراکتر) در «آبخوان» → نباید match کند
+  «آب» در «آب زیرزمینی» → باید match کند
+  «دام» (۳ کاراکتر) در «اقدامات» → نباید match کند
+  «دام» در «دام‌های غیرمجاز» → باید match کند
+"""
+
+# کاراکترهای مرزی (جداکننده‌ها)
+_SEPARATORS = (
+    r'\s'          # فاصله، tab، newline
+    r'|\u200c'     # نیم‌فاصله فارسی (ZWNJ)
+    r'|\u200b'     # Zero-width space
+    r'|[،؛؟!«»\(\)\[\]\{\}\.\,\:\;\-\_\/\\]'  # علائم نگارشی
 )
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  ۲. کلیدواژه‌های محیط‌زیستی وزن‌دار — ۲۰۰+ کلیدواژه
-# ══════════════════════════════════════════════════════════════════════════════
+# Pattern: (ابتدای رشته | separator) + keyword + (انتهای رشته | separator)
+_BOUNDARY_TMPL = r'(?:(?:^|(?<=[{seps}])){kw}(?=$|[{seps}]))'
 
-# فرمت: (کلیدواژه، امتیاز، دسته)
-_KEYWORDS: list[tuple[str, int, str]] = [
-
-    # ══ آلودگی هوا، آب و خاک (air_water_soil) ══════════════════════════════
-    ("آلودگی هوا",         10, "air_water_soil"),
-    ("آلودگی آب",          10, "air_water_soil"),
-    ("آلودگی خاک",         10, "air_water_soil"),
-    ("شاخص کیفیت هوا",    10, "air_water_soil"),
-    ("AQI",                 8, "air_water_soil"),
-    ("ریزگرد",             10, "air_water_soil"),
-    ("گرد و غبار",          8, "air_water_soil"),
-    ("ذرات معلق",           8, "air_water_soil"),
-    ("PM2.5",               8, "air_water_soil"),
-    ("PM10",                7, "air_water_soil"),
-    ("هوای آلوده",          9, "air_water_soil"),
-    ("هوای ناسالم",         9, "air_water_soil"),
-    ("کیفیت هوا",           7, "air_water_soil"),
-    ("آلاینده",             7, "air_water_soil"),
-    ("دی‌اکسید کربن",       7, "air_water_soil"),
-    ("دی اکسید گوگرد",     7, "air_water_soil"),
-    ("اکسید نیتروژن",       7, "air_water_soil"),
-    ("کربن",                4, "air_water_soil"),
-    ("فاضلاب",              7, "air_water_soil"),
-    ("پساب",                7, "air_water_soil"),
-    ("آب آلوده",            9, "air_water_soil"),
-    ("آلودگی صنعتی",        9, "air_water_soil"),
-    ("پالایشگاه",           5, "air_water_soil"),
-    ("نفت",                 4, "air_water_soil"),
-    ("نشت نفت",            10, "air_water_soil"),
-    ("سرب",                 6, "air_water_soil"),
-    ("جیوه",                7, "air_water_soil"),
-    ("کادمیوم",             7, "air_water_soil"),
-    ("آرسنیک",              7, "air_water_soil"),
-    ("پلاستیک",             5, "air_water_soil"),
-    ("میکروپلاستیک",        8, "air_water_soil"),
-    ("زباله",               4, "air_water_soil"),
-    ("پسماند",              6, "air_water_soil"),
-    ("دفن زباله",           7, "air_water_soil"),
-    ("بازیافت",             5, "air_water_soil"),
-
-    # ══ حیات وحش و تنوع زیستی (wildlife) ═══════════════════════════════════
-    ("یوزپلنگ",            12, "wildlife"),
-    ("پلنگ",               10, "wildlife"),
-    ("ببر",                10, "wildlife"),
-    ("خرس",                 8, "wildlife"),
-    ("گرگ",                 7, "wildlife"),
-    ("شیر",                 8, "wildlife"),
-    ("حیات وحش",           10, "wildlife"),
-    ("گونه در خطر",        12, "wildlife"),
-    ("گونه‌های در معرض انقراض", 12, "wildlife"),
-    ("انقراض",             10, "wildlife"),
-    ("تنوع زیستی",         10, "wildlife"),
-    ("اکوسیستم",            8, "wildlife"),
-    ("پرنده",               6, "wildlife"),
-    ("پرندگان مهاجر",      10, "wildlife"),
-    ("صید غیرمجاز",        10, "wildlife"),
-    ("شکار غیرمجاز",       10, "wildlife"),
-    ("شکار",                5, "wildlife"),
-    ("قاچاق حیوانات",      12, "wildlife"),
-    ("پناهگاه حیات وحش",   10, "wildlife"),
-    ("پارک ملی",            8, "wildlife"),
-    ("حفاظت از گونه",      10, "wildlife"),
-    ("مناطق حفاظت‌شده",     8, "wildlife"),
-    ("آهو",                 7, "wildlife"),
-    ("گوزن",                7, "wildlife"),
-    ("کرکس",                7, "wildlife"),
-    ("عقاب",                7, "wildlife"),
-    ("لاک‌پشت دریایی",      9, "wildlife"),
-    ("نهنگ",                8, "wildlife"),
-    ("دلفین",               7, "wildlife"),
-    ("فوک",                 8, "wildlife"),
-    ("اوتر",                8, "wildlife"),
-    ("سمور",                8, "wildlife"),
-    ("زیستگاه",             7, "wildlife"),
-    ("کریدور زیستی",        9, "wildlife"),
-    ("بیوسفر",              7, "wildlife"),
-
-    # ══ تالاب‌ها، دریاها و منابع آب (water_wetlands) ════════════════════════
-    ("دریاچه ارومیه",      15, "water_wetlands"),
-    ("هامون",              12, "water_wetlands"),
-    ("گاوخونی",            12, "water_wetlands"),
-    ("بختگان",             10, "water_wetlands"),
-    ("پریشان",             10, "water_wetlands"),
-    ("شادگان",             10, "water_wetlands"),
-    ("تالاب",              10, "water_wetlands"),
-    ("دریاچه",              7, "water_wetlands"),
-    ("دریای خزر",          10, "water_wetlands"),
-    ("خلیج فارس",          10, "water_wetlands"),
-    ("دریای عمان",         10, "water_wetlands"),
-    ("رودخانه",             7, "water_wetlands"),
-    ("زاینده‌رود",         12, "water_wetlands"),
-    ("کارون",              10, "water_wetlands"),
-    ("کرخه",                9, "water_wetlands"),
-    ("ارس",                 8, "water_wetlands"),
-    ("آب‌های زیرزمینی",    10, "water_wetlands"),
-    ("سفره آب زیرزمینی",   10, "water_wetlands"),
-    ("خشک شدن",             8, "water_wetlands"),
-    ("کم‌آبی",              9, "water_wetlands"),
-    ("خشکسالی",            10, "water_wetlands"),
-    ("بحران آب",           12, "water_wetlands"),
-    ("کمبود آب",           10, "water_wetlands"),
-    ("حوضه آبریز",          8, "water_wetlands"),
-    ("سد",                  5, "water_wetlands"),
-    ("آبیاری",              4, "water_wetlands"),
-    ("منابع آب",            7, "water_wetlands"),
-    ("رامسر",               8, "water_wetlands"),
-    ("آلودگی دریا",        10, "water_wetlands"),
-    ("ماهی",                4, "water_wetlands"),
-    ("صید",                 4, "water_wetlands"),
-    ("شیلات",               5, "water_wetlands"),
-
-    # ══ تغییر اقلیم و بحران‌های طبیعی (climate) ════════════════════════════
-    ("تغییر اقلیم",        12, "climate"),
-    ("گرمایش زمین",        12, "climate"),
-    ("گازهای گلخانه‌ای",   10, "climate"),
-    ("اثر گلخانه‌ای",      10, "climate"),
-    ("کربن دی اکسید",       7, "climate"),
-    ("سیل",                 8, "climate"),
-    ("سیلاب",               9, "climate"),
-    ("زلزله",               6, "climate"),
-    ("آتشفشان",             7, "climate"),
-    ("گرمای بی‌سابقه",     10, "climate"),
-    ("موج گرما",            10, "climate"),
-    ("یخبندان",             7, "climate"),
-    ("برف",                 3, "climate"),
-    ("طوفان",               7, "climate"),
-    ("گرد و غبار",          7, "climate"),
-    ("بیابان‌زایی",        10, "climate"),
-    ("فرسایش خاک",          9, "climate"),
-    ("ذوب یخ",             10, "climate"),
-    ("یخچال‌های طبیعی",    10, "climate"),
-    ("بلایای طبیعی",        8, "climate"),
-    ("اقلیم",               5, "climate"),
-    ("COP",                 7, "climate"),
-    ("پاریس",               3, "climate"),
-    ("کیوتو",               6, "climate"),
-    ("IPCC",                8, "climate"),
-    ("اقتصاد کربنی",        8, "climate"),
-
-    # ══ جنگل‌ها، مراتع و منابع طبیعی (forests) ═════════════════════════════
-    ("جنگل",                8, "forests"),
-    ("جنگل‌زدایی",         10, "forests"),
-    ("قطع درخت",           10, "forests"),
-    ("آتش‌سوزی جنگل",      12, "forests"),
-    ("آتش‌سوزی",            7, "forests"),
-    ("مرتع",                7, "forests"),
-    ("منابع طبیعی",         7, "forests"),
-    ("درخت‌کاری",           7, "forests"),
-    ("جنگل هیرکانی",       12, "forests"),
-    ("جنگل‌های زاگرس",     12, "forests"),
-    ("بلوط",                7, "forests"),
-    ("درخت",                4, "forests"),
-    ("فضای سبز",            5, "forests"),
-    ("بیشه",                6, "forests"),
-    ("سرانه فضای سبز",      7, "forests"),
-    ("کویر",                7, "forests"),
-    ("بیابان",              7, "forests"),
-    ("ماسه‌های روان",       9, "forests"),
-    ("احیای مراتع",         9, "forests"),
-    ("سیل‌بندی",            7, "forests"),
-    ("آبخیزداری",           8, "forests"),
-    ("خاک",                 3, "forests"),
-
-    # ══ سیاست‌ها، قوانین و سازمان (policy) ═════════════════════════════════
-    ("سازمان محیط‌زیست",   10, "policy"),
-    ("سازمان حفاظت",        8, "policy"),
-    ("وزارت نیرو",          4, "policy"),
-    ("قانون محیط‌زیست",    10, "policy"),
-    ("استاندارد زیست‌محیطی", 9, "policy"),
-    ("ارزیابی زیست‌محیطی",  9, "policy"),
-    ("EIA",                 8, "policy"),
-    ("مجوز زیست‌محیطی",     8, "policy"),
-    ("جریمه زیست‌محیطی",   10, "policy"),
-    ("UNEP",                8, "policy"),
-    ("برنامه ملی",          4, "policy"),
-    ("سند ملی",             4, "policy"),
-    ("پروتکل",              5, "policy"),
-    ("معاهده",              5, "policy"),
-    ("کنوانسیون",           7, "policy"),
-    ("CITES",               9, "policy"),
-    ("رامسر",               7, "policy"),
-    ("اجلاس",               4, "policy"),
-    ("بودجه محیط‌زیست",     8, "policy"),
-    ("کارگروه",             3, "policy"),
-
-    # ══ توسعه پایدار و انرژی پاک (sustainable) ═════════════════════════════
-    ("انرژی تجدیدپذیر",    10, "sustainable"),
-    ("انرژی خورشیدی",       9, "sustainable"),
-    ("پنل خورشیدی",         8, "sustainable"),
-    ("انرژی بادی",          9, "sustainable"),
-    ("توربین بادی",         8, "sustainable"),
-    ("انرژی سبز",           8, "sustainable"),
-    ("برق تجدیدپذیر",       8, "sustainable"),
-    ("هیدروژن سبز",         9, "sustainable"),
-    ("خودروی برقی",         7, "sustainable"),
-    ("حمل‌ونقل پاک",        8, "sustainable"),
-    ("ساختمان سبز",         7, "sustainable"),
-    ("توسعه پایدار",        8, "sustainable"),
-    ("اقتصاد سبز",          8, "sustainable"),
-    ("اقتصاد چرخشی",        8, "sustainable"),
-    ("کاهش کربن",           8, "sustainable"),
-    ("خنثی از نظر کربن",    9, "sustainable"),
-    ("net zero",            9, "sustainable"),
-    ("بهره‌وری انرژی",      7, "sustainable"),
-    ("صرفه‌جویی انرژی",     6, "sustainable"),
-    ("پانل خورشیدی",        7, "sustainable"),
-
-    # ══ کلیدواژه‌های عمومی محیط‌زیست ════════════════════════════════════════
-    ("محیط زیست",           6, DEFAULT_CATEGORY),
-    ("محیط‌زیست",           6, DEFAULT_CATEGORY),
-    ("زیست‌محیطی",          6, DEFAULT_CATEGORY),
-    ("طبیعت",               4, DEFAULT_CATEGORY),
-    ("حفاظت",               3, DEFAULT_CATEGORY),
-    ("اکولوژی",             7, DEFAULT_CATEGORY),
-    ("اکو",                 3, DEFAULT_CATEGORY),
-    ("سبز",                 2, DEFAULT_CATEGORY),
-    ("پایدار",              3, DEFAULT_CATEGORY),
-    ("آلودگی",              5, DEFAULT_CATEGORY),
-    ("بحران زیست‌محیطی",   10, DEFAULT_CATEGORY),
-    ("فاجعه زیست‌محیطی",   12, DEFAULT_CATEGORY),
-    ("مخاطرات زیست‌محیطی",  9, DEFAULT_CATEGORY),
-]
-
-
-def _build_keyword_pattern(keyword: str) -> re.Pattern:
+# جایگزین ساده‌تر که در Python regex کار می‌کند
+def _make_boundary_pattern(keyword: str) -> re.Pattern:
     """
-    ساخت regex برای کلیدواژه.
-    برای کلیدواژه‌های ≤ ۴ کاراکتر → word boundary برای جلوگیری از false positive.
-    مثال: «دام» نباید در «اقدامات» پیدا شود.
+    Pattern با مرز برای کلمات کوتاه (≤ ۴ کاراکتر).
+
+    استفاده از lookahead/lookbehind با کلاس کاراکتری.
     """
-    escaped = re.escape(keyword)
+    esc = re.escape(keyword)
+    # مرز: قبل از keyword نباید حرف/عدد فارسی/عربی/لاتین باشد
+    # بعد از keyword هم نباید حرف/عدد باشد
+    pattern = (
+        r'(?<![^\W\s])'    # lookbehind: قبل از keyword جدا شده
+        + esc +
+        r'(?![^\W\s])'     # lookahead: بعد از keyword جدا شده
+    )
+    # روش مطمئن‌تر برای یونیکد فارسی:
+    fa_chars = r'[\u0600-\u06FF\u0750-\u077F\uFB50-\uFDFF\uFE70-\uFEFFa-zA-Z0-9]'
+    pattern = (
+        r'(?<!' + fa_chars[1:-1] + r')' +   # قبل: نباید حرف باشد
+        esc +
+        r'(?!' + fa_chars[1:-1] + r')'      # بعد: نباید حرف باشد
+    )
+    return re.compile(pattern, re.UNICODE | re.MULTILINE)
+
+
+# Cache برای patterns (محاسبه یک‌بار، استفاده چندباره)
+_pattern_cache: dict[str, re.Pattern] = {}
+
+
+def _get_pattern(keyword: str) -> re.Pattern:
+    if keyword not in _pattern_cache:
+        _pattern_cache[keyword] = _make_boundary_pattern(keyword)
+    return _pattern_cache[keyword]
+
+
+def _keyword_matches(keyword: str, text: str) -> bool:
+    """
+    بررسی وجود کلمه کلیدی در متن.
+
+    - ≤ ۴ کاراکتر: بررسی مرز (جلوگیری از false positive)
+    - > ۴ کاراکتر: substring ساده (سریع‌تر، کافی است)
+    """
     if len(keyword) <= 4:
-        return re.compile(r"(?<!\w)" + escaped + r"(?!\w)")
-    return re.compile(escaped)
+        return bool(_get_pattern(keyword).search(text))
+    return keyword in text
 
 
-# ساخت یک بار در زمان import
-_KEYWORD_PATTERNS: list[tuple[re.Pattern, int, str]] = [
-    (_build_keyword_pattern(kw), score, cat)
-    for kw, score, cat in _KEYWORDS
-]
+def _blacklist_matches(keyword: str, text: str) -> bool:
+    """
+    بررسی کلمات بلک‌لیست.
+    همیشه با word boundary بررسی می‌کند (حتی کلمات بلند).
+    """
+    if len(keyword) <= 4:
+        return bool(_get_pattern(keyword).search(text))
+    # برای بلک‌لیست: کل عبارت را با مرز بررسی کن
+    if keyword not in _pattern_cache:
+        _pattern_cache[keyword] = _make_boundary_pattern(keyword)
+    return bool(_pattern_cache[keyword].search(text))
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ۳. فیلتر اصلی
+# دسته‌بندی
 # ══════════════════════════════════════════════════════════════════════════════
-
-def _score_article(raw: RawArticle) -> tuple[int, str]:
+def _categorize(text: str) -> str:
     """
-    محاسبه امتیاز و دسته‌بندی برای یک خبر.
+    بهترین دسته‌بندی را بر اساس وزن کلمات کلیدی آن دسته تعیین می‌کند.
 
-    Returns:
-        (امتیاز_کل، بهترین_دسته)
+    برای هر دسته: مجموع وزن کلمات کلیدی دسته که در متن هستند.
+    دسته‌ای که بیشترین مجموع وزن را داشت → انتخاب می‌شود.
+    اگر هیچ‌کدام → 'policy' (پیش‌فرض)
     """
-    text = f"{raw.title} {raw.summary} {' '.join(raw.tags)}".lower()
+    best_cat   = "policy"
+    best_score = 0
 
-    total_score = 0
-    category_scores: dict[str, int] = {}
+    for cat_cfg in CATEGORIES:
+        cat_score = 0
+        for kw in cat_cfg.keywords:
+            if _keyword_matches(kw, text):
+                # وزن از جدول اصلی (اگر وجود داشت)؛ وگرنه ۱
+                cat_score += KEYWORDS.get(kw, 1)
+        if cat_score > best_score:
+            best_score = cat_score
+            best_cat   = cat_cfg.key
 
-    for pattern, score, category in _KEYWORD_PATTERNS:
-        matches = pattern.findall(text)
-        if matches:
-            match_score = score * len(matches)
-            total_score += match_score
-            category_scores[category] = category_scores.get(category, 0) + match_score
-
-    # بهترین دسته بر اساس بالاترین امتیاز
-    if category_scores:
-        # حذف دسته پیش‌فرض اگر دسته‌های بهتری وجود دارند
-        specific = {k: v for k, v in category_scores.items() if k != DEFAULT_CATEGORY}
-        if specific:
-            best_category = max(specific, key=lambda k: specific[k])
-        else:
-            best_category = DEFAULT_CATEGORY
-    else:
-        best_category = DEFAULT_CATEGORY
-
-    return total_score, best_category
+    return best_cat
 
 
-def filter_news(
-    articles: list[RawArticle],
-) -> list[tuple[RawArticle, int, str, bool]]:
+# ══════════════════════════════════════════════════════════════════════════════
+# فیلتر یک خبر
+# ══════════════════════════════════════════════════════════════════════════════
+def filter_article(
+    title:         str,
+    summary:       str,
+    source:        str,
+    dedicated:     bool,
+    uid:           str,
+    existing_uids: set[str],
+) -> FilterResult:
     """
-    فیلتر ۴ لایه:
-    لایه ۱: اعتبارسنجی فیلدها (عنوان + لینک لازم)
-    لایه ۲: لیست سیاه (کلیدواژه‌های غیرمحیط‌زیستی)
-    لایه ۳: امتیاز کلیدواژه (حداقل آستانه)
-    لایه ۴: دسته‌بندی + علامت بحرانی
+    فیلتر ۴ لایه‌ای یک خبر.
 
-    Returns:
-        list of (RawArticle, score, category, is_critical)
+    لایه ۱: اعتبارسنجی فیلدها
+    لایه ۲: تکراری بودن (uid در existing_uids)
+    لایه ۳: بلک‌لیست (رد فوری)
+    لایه ۴: امتیازدهی وزن‌دار + آستانه + دسته‌بندی
     """
-    total      = len(articles)
-    l1_failed  = 0
-    l2_failed  = 0
-    l3_failed  = 0
-    approved   = 0
+    # ── لایه ۱: اعتبارسنجی ────────────────────────────────────────────────────
+    title   = (title   or "").strip()
+    summary = (summary or "").strip()
 
-    results: list[tuple[RawArticle, int, str, bool]] = []
+    if not title or len(title) < 5:
+        return FilterResult(False, 0, "unknown", False, "عنوان ناقص")
 
-    for raw in articles:
-        # ── لایه ۱: اعتبارسنجی ──────────────────────────────────────────────
-        if not raw.title or not raw.link:
-            l1_failed += 1
-            continue
+    full_text = f"{title} {summary}".strip()
 
-        # ── لایه ۲: لیست سیاه ───────────────────────────────────────────────
-        combined_text = f"{raw.title} {raw.summary}"
-        if _BLACKLIST_PATTERN.search(combined_text):
-            # اگر در عنوان کلیدواژه قوی محیط‌زیستی داشت → از لیست سیاه رد می‌شود
-            has_strong_env = any(
-                p.search(raw.title.lower())
-                for p, score, _ in _KEYWORD_PATTERNS
-                if score >= 8
+    # ── لایه ۲: تکراری ────────────────────────────────────────────────────────
+    if uid in existing_uids:
+        return FilterResult(False, 0, "duplicate", False, "تکراری")
+
+    # ── لایه ۳: بلک‌لیست ──────────────────────────────────────────────────────
+    for bad_word in BLACKLIST:
+        if _blacklist_matches(bad_word, full_text):
+            return FilterResult(
+                False, 0, "blacklisted", False,
+                f"بلک‌لیست: {bad_word}",
             )
-            if not has_strong_env:
-                l2_failed += 1
-                continue
 
-        # ── لایه ۳: امتیاز کلیدواژه ─────────────────────────────────────────
-        score, category = _score_article(raw)
-        threshold = SCORE_THRESHOLD_DEDICATED if raw.dedicated else SCORE_THRESHOLD_GENERAL
+    # ── لایه ۴: امتیازدهی ─────────────────────────────────────────────────────
+    score:   int        = 0
+    matched: list[str]  = []
 
-        if score < threshold:
-            l3_failed += 1
-            continue
+    for keyword, weight in KEYWORDS.items():
+        if _keyword_matches(keyword, full_text):
+            score   += weight
+            matched.append(keyword)
 
-        # ── لایه ۴: دسته‌بندی + بحرانی ──────────────────────────────────────
-        is_critical = score >= CRITICAL_SCORE_THRESHOLD
+    # بافر ۳۰٪ برای منابع اختصاصی
+    if dedicated:
+        score = int(score * 1.3)
 
-        results.append((raw, score, category, is_critical))
-        approved += 1
+    # آستانه قبولی
+    threshold = (
+        SCORE_THRESHOLD_DEDICATED if dedicated
+        else SCORE_THRESHOLD_GENERAL
+    )
+    if score < threshold:
+        return FilterResult(
+            False, score, "below_threshold", False,
+            f"امتیاز {score} < آستانه {threshold}",
+            matched,
+        )
 
-    logger.info(
-        "🔍 فیلتر: %d کل | %d فیلد | %d لیست‌سیاه | %d امتیاز کم | %d تأیید",
-        total, l1_failed, l2_failed, l3_failed, approved
+    # ── دسته‌بندی و flag بحرانی ───────────────────────────────────────────────
+    category = _categorize(full_text)
+    critical = score >= CRITICAL_SCORE_THRESHOLD
+
+    if critical:
+        log.info(
+            f"🚨 بحرانی (امتیاز={score}): {title[:50]} | "
+            f"دسته={category}"
+        )
+
+    return FilterResult(
+        passed=True,
+        score=score,
+        category=category,
+        critical=critical,
+        matched_keywords=matched,
     )
 
-    # مرتب‌سازی: بحرانی > امتیاز بالا
-    results.sort(key=lambda t: (t[3], t[1]), reverse=True)
-    return results
+
+# ══════════════════════════════════════════════════════════════════════════════
+# فیلتر دسته‌ای (تابع اصلی برای main.py)
+# ══════════════════════════════════════════════════════════════════════════════
+def filter_articles(
+    raw_articles,          # list[RawArticle]
+    existing_uids: set[str],
+) -> list[tuple]:           # list[tuple[RawArticle, FilterResult]]
+    """
+    همه RawArticle ها را فیلتر می‌کند.
+
+    Returns:
+        لیست (article, result) برای آیتم‌هایی که passed=True
+        مرتب‌شده بر اساس score (بالاتر اول)
+    """
+    passed_pairs: list[tuple] = []
+
+    # آمار برای logging
+    stats = {
+        "total":               0,
+        "passed":              0,
+        "rejected_duplicate":  0,
+        "rejected_blacklist":  0,
+        "rejected_score":      0,
+        "rejected_validation": 0,
+    }
+
+    for article in raw_articles:
+        stats["total"] += 1
+
+        result = filter_article(
+            title=article.title,
+            summary=article.summary,
+            source=article.source,
+            dedicated=article.dedicated,
+            uid=article.uid,
+            existing_uids=existing_uids,
+        )
+
+        if result.passed:
+            passed_pairs.append((article, result))
+            stats["passed"] += 1
+        else:
+            reason = result.reject_reason or ""
+            if "تکراری"    in reason: stats["rejected_duplicate"]  += 1
+            elif "بلک‌لیست" in reason: stats["rejected_blacklist"]  += 1
+            elif "ناقص"    in reason: stats["rejected_validation"] += 1
+            else:                       stats["rejected_score"]      += 1
+
+    # مرتب‌سازی: بحرانی‌ها اول، بعد بر اساس score نزولی
+    passed_pairs.sort(
+        key=lambda x: (x[1].critical, x[1].score),
+        reverse=True,
+    )
+
+    log.info(
+        f"📊 فیلتر: "
+        f"کل={stats['total']} | "
+        f"✅ قبول={stats['passed']} | "
+        f"🔁 تکراری={stats['rejected_duplicate']} | "
+        f"🚫 بلک‌لیست={stats['rejected_blacklist']} | "
+        f"📉 امتیاز={stats['rejected_score']} | "
+        f"⚠️  ناقص={stats['rejected_validation']}"
+    )
+
+    return passed_pairs
