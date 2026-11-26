@@ -1,5 +1,20 @@
 [
   {
+    "run_id": "320d6ff0",
+    "start_time": "2026-11-26T04:39:32.294910+00:00",
+    "end_time": "2026-11-26T04:49:18.807378+00:00",
+    "duration_seconds": 586.51,
+    "total_collected": 315,
+    "new_articles": 201,
+    "filtered_articles": 78,
+    "ai_analyzed": 0,
+    "ai_summarized": 5,
+    "sent_count": 30,
+    "failed_count": 0,
+    "success": true,
+    "error_message": ""
+  },
+  {
     "run_id": "693143fd",
     "start_time": "2026-11-25T22:53:55.851988+00:00",
     "end_time": "2026-11-25T23:01:49.254958+00:00",
