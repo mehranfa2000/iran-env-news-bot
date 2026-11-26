@@ -1,58 +1,92 @@
-name: 📊 Daily AI Analysis
+name: 📊 گزارش روزانه AI محیط‌زیست
 
 on:
   schedule:
-    - cron: "0 21 * * *"   # ساعت ۲۱ UTC = ۱:۳۰ بامداد تهران
+    - cron: '0 20 * * *'   # هر شب ۲۳:۳۰ به وقت تهران (UTC 20:00)
   workflow_dispatch:
 
 permissions:
   contents: write
 
+concurrency:
+  group: daily-analysis
+  cancel-in-progress: false
+
 jobs:
-  daily:
+  daily-report:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
     steps:
+      # ── ۱. Checkout ──────────────────────────────────────────────────────
       - name: ⬇️ Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🐍 Setup Python
+      # ── ۲. Python ────────────────────────────────────────────────────────
+      - name: 🐍 Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
 
-      - name: 📦 Install dependencies
+      # ── ۳. وابستگی‌ها ────────────────────────────────────────────────────
+      - name: 📦 نصب وابستگی‌ها
         run: |
           pip install --upgrade pip
           pip install \
-            feedparser==6.0.11 \
-            requests==2.32.3 \
-            beautifulsoup4==4.12.3 \
-            lxml==5.3.0 \
-            jdatetime==4.1.1 \
+            feedparser==6.0.11       \
+            requests==2.32.3         \
+            beautifulsoup4==4.12.3   \
+            lxml==5.3.0              \
+            jdatetime==4.1.1         \
             google-generativeai==0.8.3
 
-      - name: 📊 Generate daily analysis
+      # ── ۴. گزارش روزانه ──────────────────────────────────────────────────
+      - name: 📊 اجرای گزارش روزانه
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          PYTHONWARNINGS: ignore
-        run: python daily_analysis.py
+          PYTHONPATH:     ${{ github.workspace }}
+        run: python daily_report.py
 
-      - name: 📤 Commit & Push
+      # ── ۵. ذخیره گزارش (همیشه) ──────────────────────────────────────────
+      - name: 💾 ذخیره گزارش روزانه
+        if: always()
         run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # ─── کپی فایل‌های جدید ─────────────────────────────────────────
+          cp data/daily_analysis.json /tmp/daily_new.json  2>/dev/null || true
+          cp data/run_stats.json      /tmp/stats_new.json  2>/dev/null || true
 
-          cp data/daily_analysis.json /tmp/daily_new.json 2>/dev/null || true
+          # ─── تنظیم git ──────────────────────────────────────────────────
+          git config user.name  "EnvBot[bot]"
+          git config user.email "envbot@noreply.github.com"
+
+          # ─── استراتژی ضدتعارض ──────────────────────────────────────────
           git fetch origin main
           git reset --soft origin/main
-          cp /tmp/daily_new.json data/daily_analysis.json 2>/dev/null || true
 
-          git add data/daily_analysis.json || true
-          git diff --staged --quiet && echo "⏭ تغییری نبود" && exit 0
-          git commit -m "📊 auto: daily analysis $(date -u '+%Y-%m-%d')"
+          # ─── بازگرداندن فایل‌های جدید ──────────────────────────────────
+          mkdir -p data
+          cp /tmp/daily_new.json  data/daily_analysis.json 2>/dev/null || true
+          cp /tmp/stats_new.json  data/run_stats.json      2>/dev/null || true
+
+          # ─── ✅ هر دو فایل داده را add کن ───────────────────────────────
+          git add data/daily_analysis.json data/run_stats.json || true
+
+          # ─── اگر تغییری نیست، skip ─────────────────────────────────────
+          if git diff --staged --quiet; then
+            echo "⏭  تغییری نیست"
+            exit 0
+          fi
+
+          git commit -m "📊 daily report: $(date -u '+%Y-%m-%d')"
           git push origin main
+
+      # ── ۶. لاگ در صورت خطا ───────────────────────────────────────────────
+      - name: 📋 لاگ خطا
+        if: failure()
+        run: |
+          echo "════════════════════════════════"
+          tail -50 data/daily_report.log 2>/dev/null || echo "لاگ وجود ندارد"
