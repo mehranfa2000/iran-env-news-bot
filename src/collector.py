@@ -1,613 +1,520 @@
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  src/collector.py  ·  v4.2  ·  جمع‌آوری موازی اخبار محیط‌زیست              ║
-# ║  ۱۳ فید اختصاصی · 6 thread · 6 UA · استخراج تصویر · uid خودکار            ║
-# ║  رفع: BOM مهر · bozo fallback · InsecureRequestWarning                      ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
+"""
+collector.py — جمع‌آوری موازی RSS با AdaptiveFetcher
+نسخه: 4.2.0
+
+تغییرات v4.2:
+- Session واحد با connection pooling برای کاهش overhead
+- BOM stripping کامل (UTF-8, UTF-16 LE/BE, UTF-32 LE/BE)
+- کاراکترهای کنترلی نامعتبر XML پاک می‌شوند
+- published_at واقعی از RSS (نه datetime.now)
+- استخراج تصویر: media:content → enclosure → og:image → img
+- Retry با چرخش User-Agent
+- جمع‌آوری موازی با ThreadPoolExecutor
+"""
 from __future__ import annotations
 
 import hashlib
 import logging
-import random
 import re
 import time
-import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Optional
-from urllib.parse import urlparse
 
 import feedparser
 import requests
+from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import urllib3
-from bs4 import BeautifulSoup
+import warnings
 
-# ── حذف هشدارهای غیرضروری ────────────────────────────────────────────────────
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-warnings.filterwarnings("ignore", category=UserWarning, module="bs4")
+warnings.filterwarnings("ignore", category=MarkupResemblesLocatorWarning)
 
-logger = logging.getLogger(__name__)
+from src.config import (
+    RSS_FEEDS, USER_AGENTS,
+    COLLECTOR_MAX_WORKERS, COLLECTOR_TIMEOUT_SEC,
+    COLLECTOR_RETRY_COUNT, COLLECTOR_RETRY_DELAY,
+    FeedConfig,
+)
+
+log = logging.getLogger(__name__)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ۱. تعریف منابع RSS — 13 فید اختصاصی محیط‌زیست
+# مدل داده خبر خام
 # ══════════════════════════════════════════════════════════════════════════════
-
-@dataclass(frozen=True)
-class FeedSource:
-    """تعریف یک منبع RSS با تمام تنظیمات آن."""
-    name:          str
-    url:           str
-    dedicated:     bool = True    # اختصاصی → آستانه فیلتر پایین‌تر
-    skip_on_error: bool = False   # در صورت خطا crash نکند
-    verify_ssl:    bool = False   # اکثر سایت‌های ایرانی گواهی SSL مشکل دارند
-
-
-RSS_FEEDS: list[FeedSource] = [
-
-    # ── ۱. مهر ──────────────────────────────────────────────────────────────
-    FeedSource(
-        name="مهر — محیط‌زیست",
-        url="https://www.mehrnews.com/rss/tp/64",
-        skip_on_error=True,   # گاهی BOM/bozo می‌دهد → fallback داریم
-    ),
-
-    # ── ۲. همشهری آنلاین ────────────────────────────────────────────────────
-    FeedSource(
-        name="همشهری آنلاین — محیط‌زیست",
-        url="https://www.hamshahrionline.ir/rss/tp/584",
-    ),
-
-    # ── ۳. خبرآنلاین — محیط‌زیست ────────────────────────────────────────────
-    FeedSource(
-        name="خبرآنلاین — محیط‌زیست",
-        url="https://www.khabaronline.ir/rss/tp/44",
-    ),
-
-    # ── ۴. خبرآنلاین — طبیعت ────────────────────────────────────────────────
-    FeedSource(
-        name="خبرآنلاین — طبیعت",
-        url="https://www.khabaronline.ir/rss/tp/75",
-    ),
-
-    # ── ۵. سلامت نیوز — محیط‌زیست ───────────────────────────────────────────
-    FeedSource(
-        name="سلامت نیوز — محیط‌زیست",
-        url="https://www.salamatnews.com/rss/tp/11",
-    ),
-
-    # ── ۶. سلامت نیوز — اکوسیستم ────────────────────────────────────────────
-    FeedSource(
-        name="سلامت نیوز — اکوسیستم",
-        url="https://www.salamatnews.com/rss/pl/240",
-    ),
-
-    # ── ۷. ایمنا — محیط‌زیست ────────────────────────────────────────────────
-    FeedSource(
-        name="ایمنا — محیط‌زیست",
-        url="https://www.imna.ir/rss/tp/153",
-    ),
-
-    # ── ۸. صدا و سیما — محیط‌زیست (اجتماعی) ────────────────────────────────
-    FeedSource(
-        name="صدا و سیما — محیط‌زیست (اجتماعی)",
-        url="https://www.iribnews.ir/fa/rss/7/39",
-    ),
-
-    # ── ۹. صدا و سیما — محیط‌زیست (اقتصادی) ────────────────────────────────
-    FeedSource(
-        name="صدا و سیما — محیط‌زیست (اقتصادی)",
-        url="https://www.iribnews.ir/fa/rss/6/8",
-    ),
-
-    # ── ۱۰. صدا و سیما — آب و انرژی ─────────────────────────────────────────
-    FeedSource(
-        name="صدا و سیما — آب و انرژی",
-        url="https://www.iribnews.ir/fa/rss/6/46",
-    ),
-
-    # ── ۱۱. باشگاه خبرنگاران (YJC) ──────────────────────────────────────────
-    # ⚠️ HTTP 403 از GitHub Actions
-    FeedSource(
-        name="باشگاه خبرنگاران — محیط‌زیست",
-        url="https://www.yjc.ir/fa/rss/5/74",
-        skip_on_error=True,
-    ),
-
-    # ── ۱۲. روزنامه حیات ─────────────────────────────────────────────────────
-    FeedSource(
-        name="روزنامه حیات — محیط‌زیست",
-        url="https://www.hayat.ir/rss/tp/94",
-        skip_on_error=True,
-    ),
-
-    # ── ۱۳. روزنامه اطلاعات ──────────────────────────────────────────────────
-    FeedSource(
-        name="اطلاعات — گردشگری و محیط‌زیست",
-        url="https://www.ettelaat.com/rss/tp/65",
-        skip_on_error=True,
-    ),
-]
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  ۲. User-Agent های چرخشی — ۶ استراتژی
-# ══════════════════════════════════════════════════════════════════════════════
-
-_USER_AGENTS: list[str] = [
-    # ۱. Chrome / Windows
-    (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
-    # ۲. Firefox / Linux
-    (
-        "Mozilla/5.0 (X11; Linux x86_64; rv:125.0) "
-        "Gecko/20100101 Firefox/125.0"
-    ),
-    # ۳. Safari / macOS
-    (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4) "
-        "AppleWebKit/605.1.15 (KHTML, like Gecko) "
-        "Version/17.4 Safari/605.1.15"
-    ),
-    # ۴. Edge / Windows
-    (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36 Edg/124.0.0.0"
-    ),
-    # ۵. Chrome / Android
-    (
-        "Mozilla/5.0 (Linux; Android 14; Pixel 8) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.6367.82 Mobile Safari/537.36"
-    ),
-    # ۶. feedparser bot
-    "feedparser/6.0.11 +https://github.com/kurtmckee/feedparser",
-]
-
-
-def _random_ua() -> str:
-    """انتخاب تصادفی یک User-Agent."""
-    return random.choice(_USER_AGENTS)
-
-
-def _make_headers() -> dict[str, str]:
-    """ساخت header کامل برای هر درخواست HTTP."""
-    return {
-        "User-Agent":      _random_ua(),
-        "Accept":          "application/rss+xml, application/xml, text/xml, */*",
-        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Cache-Control":   "no-cache",
-        "Pragma":          "no-cache",
-        "Connection":      "keep-alive",
-    }
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  ۳. ساختار داده خروجی — RawArticle با uid خودکار
-# ══════════════════════════════════════════════════════════════════════════════
-
 @dataclass
 class RawArticle:
     """
-    یک خبر خام دریافت‌شده از RSS.
+    خبر خام از RSS — قبل از فیلتر و تبدیل.
 
-    uid: خودکار از sha256(link)[:16] محاسبه می‌شود.
-    دقیقاً همان فرمولی که StorageManager در agent.py استفاده می‌کند
-    تا تشخیص تکراری صحیح باشد.
+    uid: sha256(link)[:16] — محاسبه در __post_init__
+    published_at: زمان واقعی خبر از RSS (ISO 8601 با timezone)
+                  اگر RSS نداشت → datetime.now(utc)
     """
-    title:     str
-    link:      str
-    summary:   str
-    source:    str
-    image_url: Optional[str]
-    dedicated: bool
-    tags:      list[str] = field(default_factory=list)
-
-    # uid: خودکار — نیازی به مقداردهی دستی نیست
-    uid: str = field(default="", init=False, repr=False)
+    title:        str
+    link:         str
+    source:       str
+    summary:      str                = ""
+    image_url:    Optional[str]      = None
+    dedicated:    bool               = True
+    tags:         list[str]          = field(default_factory=list)
+    published_at: str                = ""
+    uid:          str                = field(default="", init=False)
 
     def __post_init__(self) -> None:
-        """uid بلافاصله بعد از ساخت شیء محاسبه می‌شود."""
+        # uid از sha256 لینک — قبل از هر چیز
         self.uid = hashlib.sha256(
             self.link.strip().encode("utf-8")
         ).hexdigest()[:16]
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  ۴. استخراج تصویر — ۳ لایه
-# ══════════════════════════════════════════════════════════════════════════════
+        # اگر published_at نداده شد، زمان فعلی
+        if not self.published_at:
+            self.published_at = datetime.now(timezone.utc).isoformat()
 
-def _extract_image_from_entry(entry: feedparser.FeedParserDict) -> Optional[str]:
-    """
-    استخراج تصویر با ۳ لایه اولویت:
-      لایه ۱ → enclosures  (image/*)
-      لایه ۲ → media:content / media:thumbnail
-      لایه ۳ → og:image از HTML صفحه خبر
-    """
-
-    # ── لایه ۱: enclosures ──────────────────────────────────────────────────
-    for enc in getattr(entry, "enclosures", []):
-        mime = enc.get("type", "")
-        url  = enc.get("url", "") or enc.get("href", "")
-        if url and mime.startswith("image/"):
-            validated = _validate_image_url(url)
-            if validated:
-                logger.debug("🖼 enclosure: %s", validated)
-                return validated
-
-    # ── لایه ۲: media:content / media:thumbnail ─────────────────────────────
-    for attr in ("media_content", "media_thumbnail"):
-        media_list = getattr(entry, attr, None)
-        if media_list and isinstance(media_list, list) and media_list:
-            url = media_list[0].get("url", "")
-            if url:
-                validated = _validate_image_url(url)
-                if validated:
-                    logger.debug("🖼 %s: %s", attr, validated)
-                    return validated
-
-    # ── لایه ۳: og:image از HTML صفحه ──────────────────────────────────────
-    link = entry.get("link", "").strip()
-    if link:
-        og = _fetch_og_image(link)
-        if og:
-            return og
-
-    return None
-
-
-def _validate_image_url(url: str) -> Optional[str]:
-    """بررسی می‌کند URL تصویر با http شروع می‌شود."""
-    url = url.strip()
-    if url.startswith("http"):
-        return url
-    return None
-
-
-def _fetch_og_image(url: str, timeout: int = 7) -> Optional[str]:
-    """
-    دریافت og:image یا twitter:image از HTML صفحه خبر.
-    با ترتیب اولویت meta tag ها جستجو می‌کند.
-    """
-    try:
-        resp = requests.get(
-            url,
-            headers=_make_headers(),
-            timeout=timeout,
-            verify=False,
-            allow_redirects=True,
-        )
-        resp.raise_for_status()
-
-        # فقط اگر HTML است parse کن
-        content_type = resp.headers.get("Content-Type", "")
-        if "text/html" not in content_type and "xml" not in content_type:
-            return None
-
-        html = resp.text
-        if "<" not in html or ">" not in html:
-            return None
-
-        soup = BeautifulSoup(html, "lxml")
-
-        # ترتیب اولویت meta tagها
-        selectors = [
-            {"property": "og:image"},
-            {"name": "twitter:image"},
-            {"property": "og:image:url"},
-            {"itemprop": "image"},
-        ]
-        for attrs in selectors:
-            tag = soup.find("meta", attrs=attrs)
-            if tag:
-                img_url = (
-                    tag.get("content") or tag.get("href") or ""
-                ).strip()
-                if img_url.startswith("http"):
-                    logger.debug("🖼 og:image: %s", img_url)
-                    return img_url
-
-    except requests.exceptions.Timeout:
-        logger.debug("⏱ timeout og:image از %s", url)
-    except requests.exceptions.SSLError:
-        logger.debug("🔒 SSL og:image از %s", url)
-    except Exception as exc:
-        logger.debug("⚠️ og:image خطا از %s — %s", url, exc)
-
-    return None
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ۵. توابع کمکی پاک‌سازی متن
+# Session با connection pooling
 # ══════════════════════════════════════════════════════════════════════════════
-
-def _clean_text(text: str) -> str:
-    """پاک‌سازی تگ‌های HTML و فضاهای اضافه از متن."""
-    if not text:
-        return ""
-    if "<" in text and ">" in text:
-        try:
-            text = BeautifulSoup(text, "lxml").get_text(separator=" ")
-        except Exception:
-            text = re.sub(r"<[^>]+>", " ", text)
-    # حذف کاراکترهای کنترلی
-    text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]", "", text)
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()
-
-
-def _extract_summary(entry: feedparser.FeedParserDict) -> str:
+def _build_feed_session(ua: str) -> requests.Session:
     """
-    استخراج خلاصه خبر با اولویت:
-    summary → description → content[0].value
-    حداکثر ۵۰۰ کاراکتر.
+    Session با:
+    - Retry خودکار برای 429/500/502/503/504
+    - Connection pooling (10 connections)
+    - User-Agent از پارامتر
     """
-    raw = entry.get("summary", "")
+    session = requests.Session()
+    retry = Retry(
+        total=COLLECTOR_RETRY_COUNT,
+        backoff_factor=COLLECTOR_RETRY_DELAY,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET", "HEAD"],
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(
+        max_retries=retry,
+        pool_connections=10,
+        pool_maxsize=10,
+    )
+    session.mount("http://",  adapter)
+    session.mount("https://", adapter)
+    session.headers.update({
+        "User-Agent":      ua,
+        "Accept":          "application/rss+xml, application/xml, text/xml, */*",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+        "Cache-Control":   "no-cache",
+    })
+    return session
 
-    if not raw:
-        raw = entry.get("description", "")
-
-    if not raw:
-        content_list = entry.get("content", [])
-        if content_list and isinstance(content_list, list):
-            raw = content_list[0].get("value", "")
-
-    cleaned = _clean_text(raw)
-    return cleaned[:500]
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ۶. خطای اختصاصی skip
+# BOM Stripping و پاکسازی XML
 # ══════════════════════════════════════════════════════════════════════════════
 
-class FeedSkippedError(Exception):
-    """وقتی فید skip_on_error=True است و خطا می‌دهد."""
-    pass
+# تمام انواع BOM به ترتیب طول (طولانی‌تر اول تا overlap نشود)
+_BOM_MARKERS: list[bytes] = [
+    b'\x00\x00\xfe\xff',  # UTF-32 BE
+    b'\xff\xfe\x00\x00',  # UTF-32 LE
+    b'\xef\xbb\xbf',      # UTF-8
+    b'\xfe\xff',           # UTF-16 BE
+    b'\xff\xfe',           # UTF-16 LE
+]
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  ۷. AdaptiveFetcher — هسته اصلی دریافت موازی
-# ══════════════════════════════════════════════════════════════════════════════
 
-class AdaptiveFetcher:
+def _strip_bom(content: bytes) -> bytes:
+    """تمام انواع BOM را از ابتدای محتوا حذف می‌کند."""
+    for bom in _BOM_MARKERS:
+        if content.startswith(bom):
+            log.debug(f"BOM یافت و حذف شد: {bom.hex()}")
+            return content[len(bom):]
+    return content
+
+
+def _sanitize_xml(content: bytes) -> bytes:
     """
-    دریافت موازی ۱۳ فید RSS با:
-    · ۶ thread همزمان
-    · چرخش ۶ User-Agent
-    · ۲ بار retry با تاخیر نمایی
-    · رفع BOM (عامل خطای مهر)
-    · bozo fallback (feedparser مستقیم)
-    · مدیریت skip_on_error
-    · استخراج ۳ لایه‌ای تصویر
-    · uid خودکار برای هر خبر
+    کاراکترهای کنترلی نامعتبر که XML را خراب می‌کنند حذف می‌شوند.
+    مجاز: 0x09 (tab), 0x0A (LF), 0x0D (CR), 0x20+
+    XML 1.0 spec: #x9 | #xA | #xD | [#x20-#xD7FF] | ...
     """
+    # حذف null bytes
+    content = content.replace(b'\x00', b'')
+    # حذف کاراکترهای کنترلی نامعتبر (به جز tab, newline, CR)
+    content = re.sub(rb'[\x01-\x08\x0b\x0c\x0e-\x1f\x7f]', b'', content)
+    return content
 
-    MAX_WORKERS:  int   = 6
-    TIMEOUT_FEED: int   = 25
-    RETRY_COUNT:  int   = 2
-    RETRY_DELAY:  float = 3.0
 
-    # ──────────────────────────────────────────────────────────────────────────
-    def fetch_all(self) -> list[RawArticle]:
-        """دریافت موازی همه فیدها و بازگرداندن لیست RawArticle."""
-        total = len(RSS_FEEDS)
-        logger.info("🌐 شروع دریافت %d فید با %d thread", total, self.MAX_WORKERS)
+def _prepare_content(raw_bytes: bytes) -> bytes:
+    """BOM strip + XML sanitize را یکجا اجرا می‌کند."""
+    return _sanitize_xml(_strip_bom(raw_bytes))
 
-        results: list[RawArticle] = []
-        success  = 0
-        skipped  = 0
-        failed   = 0
 
-        with ThreadPoolExecutor(
-            max_workers=self.MAX_WORKERS,
-            thread_name_prefix="collector",
-        ) as pool:
+# ══════════════════════════════════════════════════════════════════════════════
+# استخراج زمان انتشار واقعی خبر
+# ══════════════════════════════════════════════════════════════════════════════
+def _parse_published(entry) -> str:
+    """
+    زمان انتشار واقعی خبر را از entry استخراج می‌کند.
 
-            futures = {
-                pool.submit(self._fetch_one, feed): feed
-                for feed in RSS_FEEDS
-            }
+    اولویت:
+    1. published_parsed (struct_time → datetime)
+    2. updated_parsed
+    3. created_parsed
+    4. رشته‌های published/updated (email date format)
+    5. dc:date
 
-            for future in as_completed(futures):
-                feed = futures[future]
-                try:
-                    articles = future.result()
-                    logger.info(
-                        "✅ %-42s → %3d خبر",
-                        feed.name, len(articles)
-                    )
-                    results.extend(articles)
-                    success += 1
-
-                except FeedSkippedError as exc:
-                    logger.warning(
-                        "⏭  رد شد: %-35s — %s",
-                        feed.name, exc
-                    )
-                    skipped += 1
-
-                except Exception as exc:
-                    logger.error(
-                        "❌ خطا: %-35s — %s",
-                        feed.name, exc
-                    )
-                    failed += 1
-
-        logger.info(
-            "📦 جمع خام: %d خبر | ✅ %d فید | ⏭ %d رد | ❌ %d خطا",
-            len(results), success, skipped, failed
-        )
-
-        # آمار تصویر
-        with_image = sum(1 for a in results if a.image_url)
-        logger.info(
-            "🖼 تصویر: %d دارند | %d ندارند",
-            with_image, len(results) - with_image
-        )
-
-        return results
-
-    # ──────────────────────────────────────────────────────────────────────────
-    def _fetch_one(self, feed: FeedSource) -> list[RawArticle]:
-        """دریافت یک فید با مکانیزم retry."""
-        last_exc: Exception = RuntimeError("نامعلوم")
-
-        for attempt in range(1, self.RETRY_COUNT + 1):
+    اگر هیچ‌کدام نبود → datetime.now(utc)
+    """
+    # ── struct_time (feedparser parse‌شده) ────────────────────────────────────
+    for attr in ("published_parsed", "updated_parsed", "created_parsed"):
+        parsed = getattr(entry, attr, None)
+        if parsed and len(parsed) >= 6:
             try:
-                return self._parse_feed(feed)
+                dt = datetime(*parsed[:6], tzinfo=timezone.utc)
+                # sanity check: بین سال ۲۰۰۰ و ۲۱۰۰
+                if 2000 <= dt.year <= 2100:
+                    return dt.isoformat()
+            except Exception:
+                continue
 
-            except Exception as exc:
-                last_exc = exc
-                if attempt < self.RETRY_COUNT:
-                    wait = self.RETRY_DELAY * attempt
-                    logger.debug(
-                        "🔄 تلاش %d/%d | %s | %s | انتظار %.1fs",
-                        attempt, self.RETRY_COUNT,
-                        feed.name, exc, wait
-                    )
-                    time.sleep(wait)
+    # ── رشته‌های خام ─────────────────────────────────────────────────────────
+    for attr in ("published", "updated", "dc_date", "created"):
+        raw_str: str = getattr(entry, attr, "") or ""
+        if not raw_str.strip():
+            continue
+        try:
+            from email.utils import parsedate_to_datetime
+            dt = parsedate_to_datetime(raw_str)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if 2000 <= dt.year <= 2100:
+                return dt.isoformat()
+        except Exception:
+            pass
+        # تلاش با ISO format
+        try:
+            dt = datetime.fromisoformat(raw_str.replace("Z", "+00:00"))
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            if 2000 <= dt.year <= 2100:
+                return dt.isoformat()
+        except Exception:
+            pass
 
-        # بعد از همه تلاش‌ها:
-        if feed.skip_on_error:
-            raise FeedSkippedError(str(last_exc)) from last_exc
-        raise last_exc
+    return datetime.now(timezone.utc).isoformat()
 
-    # ──────────────────────────────────────────────────────────────────────────
-    def _parse_feed(self, feed: FeedSource) -> list[RawArticle]:
-        """
-        دریافت محتوای RSS با requests و parse با feedparser.
 
-        رفع مشکل BOM:
-            برخی فیدهای ایرانی (مثل مهر) با BOM شروع می‌کنند.
-            BOM یک کاراکتر نامرئی در ابتدای فایل XML است که
-            feedparser را گیج می‌کند و خطای bozo می‌دهد.
-            راه‌حل: strip کردن BOM قبل از parse.
+# ══════════════════════════════════════════════════════════════════════════════
+# استخراج تصویر
+# ══════════════════════════════════════════════════════════════════════════════
+_IMG_EXTS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".svg"})
 
-        رفع مشکل bozo:
-            اگر بعد از strip BOM هنوز bozo بود ولی entry داشت →
-            همان entry‌ها را قبول می‌کنیم.
-            اگر entry نداشت → feedparser را مستقیم روی URL امتحان می‌کنیم.
-        """
 
-        # ── دریافت محتوای خام ────────────────────────────────────────────────
-        resp = requests.get(
-            feed.url,
-            headers=_make_headers(),
-            timeout=self.TIMEOUT_FEED,
-            verify=feed.verify_ssl,
-            allow_redirects=True,
-        )
-        resp.raise_for_status()
+def _is_image_url(url: str) -> bool:
+    """آیا URL احتمالاً یک تصویر است؟"""
+    if not url or not url.startswith(("http://", "https://")):
+        return False
+    path = url.lower().split("?")[0]
+    return any(path.endswith(ext) for ext in _IMG_EXTS)
 
-        content = resp.content
 
-        # ── رفع BOM ──────────────────────────────────────────────────────────
-        # BOMهای رایج: UTF-8 (EF BB BF) | UTF-16 LE (FF FE) | UTF-16 BE (FE FF)
-        bom_map = {
-            b"\xef\xbb\xbf": "UTF-8 BOM",
-            b"\xff\xfe":     "UTF-16 LE BOM",
-            b"\xfe\xff":     "UTF-16 BE BOM",
-        }
-        for bom_bytes, bom_name in bom_map.items():
-            if content.startswith(bom_bytes):
-                content = content[len(bom_bytes):]
-                logger.debug("🔧 %s حذف شد از %s", bom_name, feed.name)
+def _extract_image(entry, summary_html: str) -> Optional[str]:
+    """
+    تصویر را به ترتیب اولویت پیدا می‌کند:
+    1. media:content (با mime type تصویر)
+    2. media:thumbnail
+    3. enclosure (با type image/*)
+    4. og:image از HTML summary
+    5. اولین <img> با src معتبر
+    """
+    # ── 1. media:content ──────────────────────────────────────────────────────
+    for media in getattr(entry, "media_content", []):
+        if isinstance(media, dict):
+            url  = media.get("url", "")
+            mime = media.get("type", "image/")
+            if url and ("image" in mime or _is_image_url(url)):
+                return url
+
+    # ── 2. media:thumbnail ────────────────────────────────────────────────────
+    thumbnails = getattr(entry, "media_thumbnail", [])
+    if thumbnails and isinstance(thumbnails, list):
+        url = thumbnails[0].get("url", "")
+        if url and url.startswith("http"):
+            return url
+
+    # ── 3. enclosure ──────────────────────────────────────────────────────────
+    for enc in getattr(entry, "enclosures", []):
+        if isinstance(enc, dict):
+            url  = enc.get("href", enc.get("url", ""))
+            mime = enc.get("type", "image/")
+            if url and ("image" in mime or _is_image_url(url)):
+                return url
+
+    # ── 4+5. HTML summary ─────────────────────────────────────────────────────
+    if summary_html and "<" in summary_html:
+        try:
+            soup = BeautifulSoup(summary_html, "lxml")
+
+            # og:image
+            og = soup.find("meta", attrs={"property": "og:image"})
+            if og:
+                content = og.get("content", "")
+                if content and content.startswith("http"):
+                    return content
+
+            # اولین img با src معتبر
+            for img in soup.find_all("img", src=True):
+                src = img["src"]
+                if src.startswith("http"):
+                    return src
+        except Exception:
+            pass
+
+    # ── فیلدهای مستقیم feedparser ─────────────────────────────────────────────
+    for attr in ("image", "thumbnail"):
+        val = getattr(entry, attr, None)
+        if isinstance(val, dict):
+            url = val.get("href", val.get("url", ""))
+            if url and url.startswith("http"):
+                return url
+        elif isinstance(val, str) and val.startswith("http"):
+            return val
+
+    return None
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# پاکسازی متن HTML
+# ══════════════════════════════════════════════════════════════════════════════
+def _clean_text(raw: str) -> str:
+    """
+    HTML را به متن خالص تبدیل می‌کند.
+    اگر HTML tag نداشت، فقط strip می‌کند.
+    """
+    if not raw:
+        return ""
+    # فقط اگر واقعاً HTML است (نه متن ساده با < و >)
+    if "<" in raw and ">" in raw:
+        try:
+            soup = BeautifulSoup(raw, "lxml")
+            text = soup.get_text(separator=" ", strip=True)
+            # فاصله‌های اضافه را پاک کن
+            return re.sub(r'\s+', ' ', text).strip()
+        except Exception:
+            pass
+    return raw.strip()
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# دریافت یک فید (با چندین استراتژی)
+# ══════════════════════════════════════════════════════════════════════════════
+def _fetch_feed(feed_cfg: FeedConfig, ua_index: int) -> list[RawArticle]:
+    """
+    یک RSS feed را دریافت، parse و به لیست RawArticle تبدیل می‌کند.
+
+    استراتژی چندمرحله‌ای:
+    1. requests با UA[ua_index] + BOM cleanup + feedparser
+    2. feedparser مستقیم با UA[ua_index+1]
+    3. requests با UA[ua_index+2] (آخرین شانس)
+
+    در هر مرحله:
+    - اگر bozo ولی entry وجود داشت → قبول (بعضی فیدها همیشه bozo هستند)
+    - اگر bozo و بدون entry → مرحله بعد
+    """
+    name = feed_cfg.name
+    url  = feed_cfg.url
+    n_ua = len(USER_AGENTS)
+
+    parsed_feed = None
+
+    # ── استراتژی ۱: requests + cleanup ───────────────────────────────────────
+    for attempt in range(COLLECTOR_RETRY_COUNT):
+        ua = USER_AGENTS[(ua_index + attempt) % n_ua]
+        session = _build_feed_session(ua)
+        try:
+            resp = session.get(url, timeout=COLLECTOR_TIMEOUT_SEC, verify=False)
+            resp.raise_for_status()
+
+            content  = _prepare_content(resp.content)
+            feed     = feedparser.parse(content)
+
+            if feed.entries:
+                parsed_feed = feed
+                log.info(
+                    f"✅ [{name}] {len(feed.entries)} خبر"
+                    f"{' (bozo)' if feed.bozo else ''}"
+                    f" — requests attempt {attempt+1}"
+                )
                 break
+            elif feed.bozo:
+                log.debug(f"[{name}] bozo بدون entry (attempt {attempt+1}): "
+                          f"{feed.bozo_exception}")
+                time.sleep(COLLECTOR_RETRY_DELAY)
 
-        # ── parse با feedparser ──────────────────────────────────────────────
-        parsed = feedparser.parse(content)
+        except requests.HTTPError as e:
+            log.warning(f"[{name}] HTTP {e.response.status_code} (attempt {attempt+1})")
+            if e.response.status_code in (403, 404):
+                break   # این‌ها با retry حل نمی‌شوند
+            time.sleep(COLLECTOR_RETRY_DELAY)
+        except requests.RequestException as e:
+            log.debug(f"[{name}] requests خطا (attempt {attempt+1}): {e}")
+            time.sleep(COLLECTOR_RETRY_DELAY)
+        finally:
+            session.close()
 
-        # ── مدیریت bozo ──────────────────────────────────────────────────────
-        if parsed.bozo:
-            bozo_exc = getattr(parsed, "bozo_exception", "نامعلوم")
+        if parsed_feed:
+            break
 
-            if parsed.entries:
-                # فید مشکل فرمت دارد ولی خبر دارد → قبول می‌کنیم
-                logger.warning(
-                    "⚠️ bozo فید %s (%d entry) — %s",
-                    feed.name, len(parsed.entries), bozo_exc
-                )
-            else:
-                # fallback: feedparser مستقیم روی URL
-                logger.debug("🔄 fallback feedparser مستقیم: %s", feed.name)
-                parsed_direct = feedparser.parse(
-                    feed.url,
-                    agent=_random_ua(),
-                )
-                if parsed_direct.entries:
-                    parsed = parsed_direct
-                    logger.info("✅ fallback موفق: %s (%d entry)",
-                                feed.name, len(parsed.entries))
-                else:
-                    raise ValueError(
-                        f"فید خراب — bozo: {bozo_exc}"
-                    )
+    # ── استراتژی ۲: feedparser مستقیم ────────────────────────────────────────
+    if not parsed_feed:
+        for i in range(2):
+            ua = USER_AGENTS[(ua_index + i + 1) % n_ua]
+            try:
+                feed = feedparser.parse(url, agent=ua)
+                if feed.entries:
+                    parsed_feed = feed
+                    log.info(f"✅ [{name}] {len(feed.entries)} خبر — feedparser مستقیم")
+                    break
+            except Exception as e:
+                log.debug(f"[{name}] feedparser مستقیم (try {i+1}): {e}")
 
-        # ── تبدیل entry‌ها به RawArticle ─────────────────────────────────────
-        articles: list[RawArticle] = []
-        for entry in parsed.entries:
-            article = self._entry_to_article(entry, feed)
-            if article is not None:
-                articles.append(article)
+    # ── شکست کامل ─────────────────────────────────────────────────────────────
+    if not parsed_feed or not parsed_feed.entries:
+        if feed_cfg.skip_on_error:
+            log.warning(f"⚠️  [{name}] رد شد (skip_on_error=True)")
+        else:
+            log.error(f"❌ [{name}] تمام استراتژی‌ها ناموفق: {url}")
+        return []
 
-        return articles
+    # ── تبدیل entry به RawArticle ────────────────────────────────────────────
+    articles: list[RawArticle] = []
 
-    # ──────────────────────────────────────────────────────────────────────────
-    def _entry_to_article(
-        self,
-        entry: feedparser.FeedParserDict,
-        feed:  FeedSource,
-    ) -> Optional[RawArticle]:
-        """
-        تبدیل یک entry فید به RawArticle.
-        در صورت اعتبارسنجی شکست → None.
-        """
-        # ── استخراج فیلدهای اصلی ────────────────────────────────────────────
-        title   = _clean_text(entry.get("title", ""))
-        link    = entry.get("link", "").strip()
-        summary = _extract_summary(entry)
+    for entry in parsed_feed.entries:
+        try:
+            # ── عنوان ──────────────────────────────────────────────────────────
+            title = _clean_text(getattr(entry, "title", "")).strip()
+            if not title or len(title) < 5:
+                continue
 
-        # ── اعتبارسنجی پایه ─────────────────────────────────────────────────
-        if not title:
-            return None
-        if not link:
-            return None
+            # ── لینک ───────────────────────────────────────────────────────────
+            link = getattr(entry, "link", "").strip()
+            if not link or not link.startswith(("http://", "https://")):
+                continue
 
-        parsed_url = urlparse(link)
-        if parsed_url.scheme not in ("http", "https"):
-            return None
-        if not parsed_url.netloc:
-            return None
+            # ── خلاصه ──────────────────────────────────────────────────────────
+            summary_raw = ""
+            # اولویت: summary → description → content[0]
+            if hasattr(entry, "summary") and entry.summary:
+                summary_raw = entry.summary
+            elif hasattr(entry, "description") and entry.description:
+                summary_raw = entry.description
+            elif hasattr(entry, "content") and entry.content:
+                summary_raw = entry.content[0].get("value", "")
 
-        # ── استخراج تصویر ───────────────────────────────────────────────────
-        image_url = _extract_image_from_entry(entry)
+            summary = _clean_text(summary_raw)[:600]
 
-        # ── استخراج تگ‌ها ────────────────────────────────────────────────────
-        tags: list[str] = [
-            t.get("term", "").strip()
-            for t in getattr(entry, "tags", [])
-            if t.get("term", "").strip()
-        ]
+            # ── تصویر ──────────────────────────────────────────────────────────
+            image_url = _extract_image(entry, summary_raw)
 
-        # ── ساخت RawArticle — uid خودکار در __post_init__ ───────────────────
-        return RawArticle(
-            title     = title,
-            link      = link,
-            summary   = summary,
-            source    = feed.name,
-            image_url = image_url,
-            dedicated = feed.dedicated,
-            tags      = tags,
-        )
+            # ── زمان واقعی ─────────────────────────────────────────────────────
+            published_at = _parse_published(entry)
+
+            # ── تگ‌ها ───────────────────────────────────────────────────────────
+            tags = [
+                t.get("term", "").strip()
+                for t in getattr(entry, "tags", [])
+                if t.get("term", "").strip()
+            ]
+
+            articles.append(RawArticle(
+                title=title,
+                link=link,
+                source=name,
+                summary=summary,
+                image_url=image_url,
+                dedicated=feed_cfg.dedicated,
+                tags=tags,
+                published_at=published_at,
+            ))
+
+        except Exception as e:
+            log.debug(f"[{name}] خطا در parse entry: {e}")
+            continue
+
+    log.debug(f"[{name}] {len(articles)} خبر استخراج شد")
+    return articles
+
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  ۸. تابع عمومی — فراخوانده می‌شود از main.py
+# جمع‌آوری موازی (تابع اصلی)
 # ══════════════════════════════════════════════════════════════════════════════
-
-def collect_news() -> list[RawArticle]:
+def collect_all(feeds: Optional[list[FeedConfig]] = None) -> list[RawArticle]:
     """
-    نقطه ورود اصلی collector.
+    همه فیدها را موازی جمع‌آوری می‌کند.
 
-    استفاده در main.py:
-        from src.collector import collect_news
-        raw_items = collect_news()
+    Args:
+        feeds: لیست فیدها؛ اگر None → RSS_FEEDS از config
+
+    Returns:
+        لیست RawArticle منحصربه‌فرد (بر اساس link)
     """
-    fetcher = AdaptiveFetcher()
-    return fetcher.fetch_all()
+    if feeds is None:
+        feeds = RSS_FEEDS
+
+    all_articles:  list[RawArticle] = []
+    seen_links:    set[str]          = set()
+    feed_stats:    dict[str, int]    = {}
+
+    log.info(
+        f"🚀 شروع جمع‌آوری موازی — "
+        f"{len(feeds)} فید | {COLLECTOR_MAX_WORKERS} thread"
+    )
+    t0 = time.monotonic()
+
+    with ThreadPoolExecutor(
+        max_workers=COLLECTOR_MAX_WORKERS,
+        thread_name_prefix="collector",
+    ) as executor:
+        # submit با چرخش UA index
+        future_map = {
+            executor.submit(_fetch_feed, feed_cfg, i): feed_cfg
+            for i, feed_cfg in enumerate(feeds)
+        }
+
+        for future in as_completed(future_map, timeout=120):
+            feed_cfg = future_map[future]
+            try:
+                articles = future.result(timeout=5)
+                new_count = 0
+
+                for art in articles:
+                    if art.link not in seen_links:
+                        seen_links.add(art.link)
+                        all_articles.append(art)
+                        new_count += 1
+
+                feed_stats[feed_cfg.name] = new_count
+
+            except FuturesTimeout:
+                log.warning(f"⏰ [{feed_cfg.name}] timeout در future.result()")
+            except Exception as e:
+                log.error(f"❌ [{feed_cfg.name}] خطای کلی: {e}")
+                feed_stats[feed_cfg.name] = 0
+
+    elapsed = time.monotonic() - t0
+
+    # ── گزارش خلاصه ───────────────────────────────────────────────────────────
+    log.info(
+        f"✅ جمع‌آوری تمام — "
+        f"{len(all_articles)} خبر منحصربه‌فرد | "
+        f"{elapsed:.1f}s"
+    )
+
+    # خلاصه هر فید
+    for feed_name, count in sorted(feed_stats.items(), key=lambda x: -x[1]):
+        icon = "✅" if count > 0 else "⚠️ "
+        log.debug(f"   {icon} {feed_name}: {count} خبر")
+
+    return all_articles
