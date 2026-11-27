@@ -5318,5 +5318,203 @@
     "ai_summary": null,
     "pr_analysis": null,
     "sent": true
+  },
+  {
+    "uid": "14ad6bb7516b90f2",
+    "title": "تالاب سولدوز میزبان نخستین دسته‌های غاز خاکستری مهاجر شد",
+    "link": "https://www.hayat.ir/news/315300/%D8%AA%D8%A7%D9%84%D8%A7%D8%A8-%D8%B3%D9%88%D9%84%D8%AF%D9%88%D8%B2-%D9%85%DB%8C%D8%B2%D8%A8%D8%A7%D9%86-%D9%86%D8%AE%D8%B3%D8%AA%DB%8C%D9%86-%D8%AF%D8%B3%D8%AA%D9%87-%D9%87%D8%A7%DB%8C-%D8%BA%D8%A7%D8%B2-%D8%AE%D8%A7%DA%A9%D8%B3%D8%AA%D8%B1%DB%8C-%D9%85%D9%87%D8%A7%D8%AC%D8%B1-%D8%B4%D8%AF",
+    "source": "روزنامه حیات — محیط‌زیست",
+    "category": "water_wetlands",
+    "score": 22,
+    "published_at": "2026-11-27T08:30:07+00:00",
+    "shamsi_date": "1405/09/06 08:30",
+    "summary": "رییس اداره حفاظت محیط زیست نقده از مشاهده نخستین گروه غازهای خاکستری مهاجر در تالاب‌های این شهرستان خبر داد و گفت: این پرندگان در مسیر مهاجرت فصلی خود از مناطق شمالی به سمت جنوب، تالاب‌های نقده را برای استراحت و تغذیه انتخاب کرده‌اند.",
+    "image_url": "https://media.hayat.ir/d/2026/11/27/4/355312.jpg",
+    "dedicated": true,
+    "tags": [
+      "اجتماعی > محیط زیست"
+    ],
+    "critical": true,
+    "ai_summary": null,
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "558be41e449194c4",
+    "title": "کاهش محسوس دمای تهران از سه‌شنبه/بارش‌های پاییزی در راه ایران/ غرب و جنوب‌غرب کشور پربارش می‌شوند",
+    "link": "https://www.khabaronline.ir/news/2307486/%DA%A9%D8%A7%D9%87%D8%B4-%D9%85%D8%AD%D8%B3%D9%88%D8%B3-%D8%AF%D9%85%D8%A7%DB%8C-%D8%AA%D9%87%D8%B1%D8%A7%D9%86-%D8%A7%D8%B2-%D8%B3%D9%87-%D8%B4%D9%86%D8%A8%D9%87-%D8%A8%D8%A7%D8%B1%D8%B4-%D9%87%D8%A7%DB%8C-%D9%BE%D8%A7%DB%8C%DB%8C%D8%B2%DB%8C-%D8%AF%D8%B1-%D8%B1%D8%A7%D9%87-%D8%A7%DB%8C%D8%B1%D8%A7%D9%86",
+    "source": "خبرآنلاین — محیط‌زیست",
+    "category": "water_wetlands",
+    "score": 13,
+    "published_at": "2026-11-27T07:41:00+00:00",
+    "shamsi_date": "1405/09/06 07:41",
+    "summary": "رئیس مرکز ملی اقلیم و مدیریت بحران خشکسالی سازمان هواشناسی کشور با اشاره به پایان روزهای اوج گرمای تهران، از کاهش محسوس دمای هوا در روزهای آینده خبر داد.",
+    "image_url": "https://media.khabaronline.ir/d/2026/09/08/4/6471257.jpg",
+    "dedicated": true,
+    "tags": [
+      "اخبار اجتماعی > محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": null,
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "04bcdc7e9fa35b29",
+    "title": "ثبت زادآوری طبیعی گوزن زرد ایرانی در زیستگاه تاریخی دز",
+    "link": "https://www.salamatnews.com/news/404105/%D8%AB%D8%A8%D8%AA-%D8%B2%D8%A7%D8%AF%D8%A2%D9%88%D8%B1%DB%8C-%D8%B7%D8%A8%DB%8C%D8%B9%DB%8C-%DA%AF%D9%88%D8%B2%D9%86-%D8%B2%D8%B1%D8%AF-%D8%A7%DB%8C%D8%B1%D8%A7%D9%86%DB%8C-%D8%AF%D8%B1-%D8%B2%DB%8C%D8%B3%D8%AA%DA%AF%D8%A7%D9%87-%D8%AA%D8%A7%D8%B1%DB%8C%D8%AE%DB%8C-%D8%AF%D8%B2",
+    "source": "سلامت نیوز — محیط‌زیست",
+    "category": "wildlife",
+    "score": 10,
+    "published_at": "2026-11-27T08:57:41+00:00",
+    "shamsi_date": "1405/09/06 08:57",
+    "summary": "ثبت تصویر یک ماده گوزن زرد ایرانی متولد طبیعت در زیستگاه تاریخی دز، نشانه‌ای امیدوارکننده از موفقیت برنامه احیای این گونه و آغاز زادآوری طبیعی آن در زیستگاه است.",
+    "image_url": "https://media.salamatnews.com/d/2026/11/27/4/260584.jpg",
+    "dedicated": true,
+    "tags": [
+      "اخبار سلامت > اخبار محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": ":** Maximum",
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "52fe613b8f1218bf",
+    "title": "هوای اصفهان ناسالم شد/ شاخص آلودگی در برخی مناطق از ۱۵۰ گذشت",
+    "link": "https://www.khabaronline.ir/news/2307551/%D9%87%D9%88%D8%A7%DB%8C-%D8%A7%D8%B5%D9%81%D9%87%D8%A7%D9%86-%D9%86%D8%A7%D8%B3%D8%A7%D9%84%D9%85-%D8%B4%D8%AF-%D8%B4%D8%A7%D8%AE%D8%B5-%D8%A2%D9%84%D9%88%D8%AF%DA%AF%DB%8C-%D8%AF%D8%B1-%D8%A8%D8%B1%D8%AE%DB%8C-%D9%85%D9%86%D8%A7%D8%B7%D9%82-%D8%A7%D8%B2-%DB%B1%DB%B5%DB%B0-%DA%AF%D8%B0%D8%B4%D8%AA",
+    "source": "خبرآنلاین — محیط‌زیست",
+    "category": "air_water_soil",
+    "score": 9,
+    "published_at": "2026-11-27T08:42:04+00:00",
+    "shamsi_date": "1405/09/06 08:42",
+    "summary": "پایداری جو و افزایش آلاینده‌ها، کیفیت هوای اصفهان را در نخستین ساعات امروز کاهش داده و وضعیت برخی مناطق را به محدوده ناسالم رسانده است.",
+    "image_url": "https://media.khabaronline.ir/d/2026/11/27/4/6509870.jpg",
+    "dedicated": true,
+    "tags": [
+      "اخبار اجتماعی > محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": null,
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "660981620866181b",
+    "title": "آلودگی هوای اصفهان، امروز جمعه ۶ آذر + جدول شاخص کیفیت هوا به تفکیک مناطق",
+    "link": "https://www.imna.ir/news/1023068/%D8%A2%D9%84%D9%88%D8%AF%DA%AF%DB%8C-%D9%87%D9%88%D8%A7%DB%8C-%D8%A7%D8%B5%D9%81%D9%87%D8%A7%D9%86-%D8%A7%D9%85%D8%B1%D9%88%D8%B2-%D8%AC%D9%85%D8%B9%D9%87-%DB%B6-%D8%A2%D8%B0%D8%B1-%D8%AC%D8%AF%D9%88%D9%84-%D8%B4%D8%A7%D8%AE%D8%B5-%DA%A9%DB%8C%D9%81%DB%8C%D8%AA-%D9%87%D9%88%D8%A7-%D8%A8%D9%87",
+    "source": "ایمنا — محیط‌زیست",
+    "category": "air_water_soil",
+    "score": 9,
+    "published_at": "2026-11-27T06:30:31+00:00",
+    "shamsi_date": "1405/09/06 06:30",
+    "summary": "شاخص کیفیت هوای اصفهان امروز _جمعه ۶ آذر _ با عدد ۱۰۷ در وضعیت ناسالم برای گروه‌های حساس ثبت شد.",
+    "image_url": "https://media.imna.ir/d/2023/11/06/4/1939638.jpg",
+    "dedicated": true,
+    "tags": [
+      "جامعه > محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": "(Title",
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "e9bf58ea08ed75ca",
+    "title": "هوای روز جمعه اصفهان آلوده است",
+    "link": "https://www.mehrnews.com/news/7024505/%D9%87%D9%88%D8%A7%DB%8C-%D8%B1%D9%88%D8%B2-%D8%AC%D9%85%D8%B9%D9%87-%D8%A7%D8%B5%D9%81%D9%87%D8%A7%D9%86-%D8%A2%D9%84%D9%88%D8%AF%D9%87-%D8%A7%D8%B3%D8%AA",
+    "source": "مهر — محیط‌زیست",
+    "category": "air_water_soil",
+    "score": 7,
+    "published_at": "2026-11-27T07:57:01+00:00",
+    "shamsi_date": "1405/09/06 07:57",
+    "summary": "اصفهان- شاخص کیفیت هوای کلانشهر اصفهان صبح جمعه ۶ آذرماه با میانگین ۱۰۷ AQI در وضعیت ناسالم برای گروه‌های حساس ثبت شد.",
+    "image_url": "https://media.mehrnews.com/d/2023/11/14/4/4736657.jpg",
+    "dedicated": true,
+    "tags": [
+      "استانها > اصفهان"
+    ],
+    "critical": false,
+    "ai_summary": "(Title):",
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "77233b7778847dde",
+    "title": "هوای تهران تا یکشنبه آلوده‌تر می‌شود/ وزش باد از عصر یکشنبه",
+    "link": "https://www.khabaronline.ir/news/2307669/%D9%87%D9%88%D8%A7%DB%8C-%D8%AA%D9%87%D8%B1%D8%A7%D9%86-%D8%AA%D8%A7-%DB%8C%DA%A9%D8%B4%D9%86%D8%A8%D9%87-%D8%A2%D9%84%D9%88%D8%AF%D9%87-%D8%AA%D8%B1-%D9%85%DB%8C-%D8%B4%D9%88%D8%AF-%D9%88%D8%B2%D8%B4-%D8%A8%D8%A7%D8%AF-%D8%A7%D8%B2-%D8%B9%D8%B5%D8%B1-%DB%8C%DA%A9%D8%B4%D9%86%D8%A8%D9%87",
+    "source": "خبرآنلاین — محیط‌زیست",
+    "category": "air_water_soil",
+    "score": 7,
+    "published_at": "2026-11-27T13:10:00+00:00",
+    "shamsi_date": "1405/09/06 13:10",
+    "summary": "مدیرکل هواشناسی استان تهران از کاهش کیفیت هوا در ۴۸ ساعت آینده خبر داد.",
+    "image_url": "https://media.khabaronline.ir/d/2026/11/15/4/6504241.jpg",
+    "dedicated": true,
+    "tags": [
+      "اخبار اجتماعی > محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": "یک",
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "60c24d78b7eec695",
+    "title": "ثبت بیش از ۶۸ درصد روزهای پاک در کلان‌شهرهای کشور",
+    "link": "https://www.mehrnews.com/news/7024526/%D8%AB%D8%A8%D8%AA-%D8%A8%DB%8C%D8%B4-%D8%A7%D8%B2-%DB%B6%DB%B8-%D8%AF%D8%B1%D8%B5%D8%AF-%D8%B1%D9%88%D8%B2%D9%87%D8%A7%DB%8C-%D9%BE%D8%A7%DA%A9-%D8%AF%D8%B1-%DA%A9%D9%84%D8%A7%D9%86-%D8%B4%D9%87%D8%B1%D9%87%D8%A7%DB%8C-%DA%A9%D8%B4%D9%88%D8%B1",
+    "source": "مهر — محیط‌زیست",
+    "category": "policy",
+    "score": 6,
+    "published_at": "2026-11-27T06:44:04+00:00",
+    "shamsi_date": "1405/09/06 06:44",
+    "summary": "گزارش کیفیت هوای تابستان ۱۴۰۵ از ثبت بیش از ۶۸ درصد روزهای پاک و قابل قبول در ۱۰ کلان‌شهر ایران حکایت دارد؛ با این حال، افزایش برخی آلاینده‌های گازی همچنان نگران‌کننده است.",
+    "image_url": "https://media.mehrnews.com/d/2026/01/08/4/5861522.jpg",
+    "dedicated": true,
+    "tags": [
+      "جامعه > محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": "بر",
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "9df5cc8260477c40",
+    "title": "تأکید ساتبا بر رعایت اصول ایمنی در برف‌روبی و نگهداری نیروگاه‌های خورشیدی",
+    "link": "https://www.irib-news.ir/fa/news/5978248/تأکید-ساتبا-بر-رعایت-اصول-ایمنی-در-برف-روبی-و-نگهداری-نیروگاه-های-خورشیدی",
+    "source": "صدا و سیما — آب و انرژی",
+    "category": "sustainable",
+    "score": 3,
+    "published_at": "2026-11-27T10:16:45+00:00",
+    "shamsi_date": "1405/09/06 10:16",
+    "summary": "رئیس گروه فنی و مهندسی ساتبا با هشدار درباره مخاطرات برف‌روبی غیراصولی و انجام فعالیت‌های برقی در محیط‌های خیس و لغزنده، رعایت دستورالعمل‌های ایمنی در نگهداری نیروگاه‌های خورشیدی در فصل زمستان را ضروری دانست و تأکید کرد­ ایمنی کارکنان و تجهیزات بر اهداف تولید اولویت دارد.",
+    "image_url": null,
+    "dedicated": true,
+    "tags": [],
+    "critical": false,
+    "ai_summary": null,
+    "pr_analysis": null,
+    "sent": true
+  },
+  {
+    "uid": "7bf9f23ce651702d",
+    "title": "آغاز بارش‌ ها از هشتم آذر در بیشتر مناطق کشور",
+    "link": "https://www.hayat.ir/news/315270/%D8%A2%D8%BA%D8%A7%D8%B2-%D8%A8%D8%A7%D8%B1%D8%B4-%D9%87%D8%A7-%D8%A7%D8%B2-%D9%87%D8%B4%D8%AA%D9%85-%D8%A2%D8%B0%D8%B1-%D8%AF%D8%B1-%D8%A8%DB%8C%D8%B4%D8%AA%D8%B1-%D9%85%D9%86%D8%A7%D8%B7%D9%82-%DA%A9%D8%B4%D9%88%D8%B1",
+    "source": "روزنامه حیات — محیط‌زیست",
+    "category": "policy",
+    "score": 3,
+    "published_at": "2026-11-27T06:41:12+00:00",
+    "shamsi_date": "1405/09/06 06:41",
+    "summary": "سازمان هواشناسی کشور از ورود سامانه بارشی به شمال غرب کشور از بعدظهر یکشنبه - هشتم آذر- و آغاز بارش ها در بیشتر مناطق کشور خبر داد و اعلام کرد: در نیمه شمالی کشور شاهد کاهش محسوس دما خواهیم شد.",
+    "image_url": "https://media.hayat.ir/d/2026/09/12/4/334062.jpg",
+    "dedicated": true,
+    "tags": [
+      "اجتماعی > محیط زیست"
+    ],
+    "critical": false,
+    "ai_summary": null,
+    "pr_analysis": null,
+    "sent": true
   }
 ]
