@@ -5534,5 +5534,25 @@
     "ai_summary": null,
     "pr_analysis": null,
     "sent": true
+  },
+  {
+    "uid": "cb72d94e51d72ce4",
+    "title": "دانش‌آموز ۱۸ ساله هنگام حفر کانال فاضلاب، گنجینه ۹ میلیون یورویی طلا پیدا کرد",
+    "link": "https://www.khabaronline.ir/news/2307770/%D8%AF%D8%A7%D9%86%D8%B4-%D8%A2%D9%85%D9%88%D8%B2-%DB%B1%DB%B8-%D8%B3%D8%A7%D9%84%D9%87-%D9%87%D9%86%DA%AF%D8%A7%D9%85-%D8%AD%D9%81%D8%B1-%DA%A9%D8%A7%D9%86%D8%A7%D9%84-%D9%81%D8%A7%D8%B6%D9%84%D8%A7%D8%A8-%DA%AF%D9%86%D8%AC%DB%8C%D9%86%D9%87-%DB%B9-%D9%85%DB%8C%D9%84%DB%8C%D9%88%D9%86-%DB%8C%D9%88%D8%B1%D9%88%DB%8C%DB%8C",
+    "source": "خبرآنلاین — طبیعت",
+    "category": "air_water_soil",
+    "score": 6,
+    "published_at": "2026-11-27T19:30:00+00:00",
+    "shamsi_date": "1405/09/06 19:30",
+    "summary": "دانش‌آموزی ۱۸ ساله در بلژیک هنگام کار در یک پروژه ساختمانی، به‌طور اتفاقی مجموعه‌ای از سکه‌ها و شمش‌های طلای قدیمی به ارزش تقریبی ۹ میلیون یورو کشف کرد؛ گنجینه‌ای که اکنون برای تعیین مالک قانونی آن در اختیار مقام‌های قضایی قرار گرفته است.",
+    "image_url": "https://media.khabaronline.ir/d/2026/11/27/4/6510090.jpg",
+    "dedicated": true,
+    "tags": [
+      "اخبار دانش و فناوری > طبیعت"
+    ],
+    "critical": false,
+    "ai_summary": null,
+    "pr_analysis": null,
+    "sent": true
   }
 ]
